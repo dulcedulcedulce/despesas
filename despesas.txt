@@ -1,0 +1,2 @@
+Farmácia,10.00
+Supermercado,2000.00

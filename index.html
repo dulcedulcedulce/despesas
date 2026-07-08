@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Gastos Simples</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* TEMA ESCURO DISCRETO */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a; 
+            color: #dcdcdc; 
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background-color: #262626; 
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            color: #eaeaea;
+            font-weight: normal;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .flex-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #aaaaaa;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #3d3d3d;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+        ::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+        select, input {
+            background-color: #333333;
+            color: #dfdfdf;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #5c7080;
+        }
+        input::placeholder {
+            color: #777777;
+        }
+        
+        /* BOTÕES COM CORES DISCRETAS */
+        button {
+            background-color: #4a5c50; 
+            color: #dfdfdf;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #3e4d43;
+        }
+        .btn-export {
+            background-color: #455263; 
+        }
+        .btn-export:hover {
+            background-color: #384352;
+        }
+        .btn-danger {
+            background-color: #5c3e3e; 
+            color: #d6b4b4;
+            width: auto;
+            margin-top: 0;
+            padding: 10px 15px;
+        }
+        .btn-danger:hover {
+            background-color: #4d3333;
+        }
+        .btn-add {
+            background-color: #4d4d4d; 
+            width: auto;
+            margin-top: 0;
+            white-space: nowrap;
+        }
+        .btn-add:hover {
+            background-color: #404040;
+        }
+        .btn-excluir-item {
+            background: none;
+            border: none;
+            color: #8c5353;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 5px;
+            margin-left: 10px;
+            margin-top: 0;
+            width: auto;
+        }
+        .btn-excluir-item:hover {
+            background: none;
+            color: #d6b4b4;
+        }
+        
+        .chart-container {
+            margin-top: 30px;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #3d3d3d;
+            margin: 20px 0;
+        }
+        
+        /* RESUMO E LISTA DE VALORES */
+        .resumo-container {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #2b2b2b;
+            border-radius: 5px;
+            border: 1px solid #3d3d3d;
+        }
+        .resumo-container h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #cccccc;
+            text-align: center;
+            font-weight: normal;
+        }
+        .resumo-lista {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .resumo-lista li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #444444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #bbbbbb;
+            font-size: 15px;
+        }
+        .resumo-lista li:last-child {
+            border-bottom: none;
+        }
+        .item-detalhe {
+            display: flex;
+            align-items: center;
+        }
+        .total-geral {
+            font-size: 16px;
+            margin-top: 15px;
+            color: #8da693; 
+            text-align: center;
+            border-top: 1px solid #444444;
+            padding-top: 12px;
+        }
+        
+        /* FILTRO DE MÊS */
+        .filtro-mes-container {
+            background-color: #2e2e2e;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #5c7080;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Controle de Gastos</h2>
+
+        <div class="form-group">
+            <label for="categoria">Categoria:</label>
+            <div class="flex-group">
+                <select id="categoria"></select>
+                <button class="btn-danger" onclick="removerCategoria()" title="Apagar categoria selecionada">✕</button>
+            </div>
+        </div>
+
+        <div class="form-group flex-group">
+            <input type="text" id="novaCategoria" placeholder="Nova categoria (Ex: Roupas)">
+            <button class="btn-add" onclick="adicionarCategoria()">+ Adicionar</button>
+        </div>
+
+        <hr>
+
+        <div class="form-group flex-group">
+            <div style="flex: 1;">
+                <label for="dataDespesa">Data:</label>
+                <input type="date" id="dataDespesa">
+            </div>
+            <div style="flex: 1;">
+                <label for="valor">Valor (R$):</label>
+                <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
+            </div>
+        </div>
+
+        <button onclick="adicionarDespesa()">Registrar Despesa</button>
+        <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
+
+        <hr>
+
+        <div class="filtro-mes-container">
+            <label for="mesFiltro" style="color: #829ab0;">Analisar Mês/Ano:</label>
+            <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
+        </div>
+
+        <div class="chart-container">
+            <canvas id="graficoGastos"></canvas>
+        </div>
+
+        <div id="resumoValores"></div>
+        <div id="historicoValores"></div>
+
+    </div>
+
+    <script>
+        let despesas = [];
+        let categorias = [];
+        let grafico = null;
+
+        const categoriasPadrao = ['Supermercado', 'Farmácia', 'Contas da Casa', 'Transporte', 'Lazer', 'Outros'];
+
+        window.onload = function() {
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            const dataHoje = `${ano}-${mes}-${dia}`;
+            const mesAtual = `${ano}-${mes}`;
+
+            const despesasSalvas = localStorage.getItem('despesas');
+            if (despesasSalvas) {
+                despesas = JSON.parse(despesasSalvas);
+                let precisaSalvar = false;
+                despesas.forEach(d => {
+                    // Adiciona um ID único para cada despesa antiga que não tiver
+                    if (!d.id) {
+                        d.id = Date.now() + Math.floor(Math.random() * 1000);
+                        precisaSalvar = true;
+                    }
+                    // Adiciona data para despesas muito antigas
+                    if (!d.data) {
+                        d.data = dataHoje;
+                        precisaSalvar = true;
+                    }
+                });
+                if (precisaSalvar) localStorage.setItem('despesas', JSON.stringify(despesas));
+            }
+
+            const categoriasSalvas = localStorage.getItem('categorias');
+            if (categoriasSalvas) {
+                categorias = JSON.parse(categoriasSalvas);
+            } else {
+                categorias = [...categoriasPadrao];
+            }
+
+            document.getElementById('dataDespesa').value = dataHoje;
+            document.getElementById('mesFiltro').value = mesAtual;
+
+            renderizarCategorias();
+            atualizarGrafico();
+        };
+
+        function renderizarCategorias() {
+            const select = document.getElementById('categoria');
+            select.innerHTML = ''; 
+            
+            categorias.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                select.appendChild(option);
+            });
+        }
+
+        function adicionarCategoria() {
+            const input = document.getElementById('novaCategoria');
+            const novaCat = input.value.trim();
+
+            if (novaCat === '') return;
+
+            if (categorias.includes(novaCat)) {
+                alert("Esta categoria já existe.");
+                return;
+            }
+
+            categorias.push(novaCat);
+            localStorage.setItem('categorias', JSON.stringify(categorias)); 
+            
+            input.value = ''; 
+            renderizarCategorias(); 
+            document.getElementById('categoria').value = novaCat; 
+        }
+
+        function removerCategoria() {
+            const select = document.getElementById('categoria');
+            const catParaRemover = select.value;
+
+            if (!catParaRemover) return;
+
+            const confirmacao = confirm(`Deseja remover a categoria "${catParaRemover}" da lista? \n\nO histórico de despesas antigas será mantido no gráfico.`);
+            
+            if (confirmacao) {
+                categorias = categorias.filter(c => c !== catParaRemover);
+                localStorage.setItem('categorias', JSON.stringify(categorias)); 
+                renderizarCategorias(); 
+            }
+        }
+
+        function adicionarDespesa() {
+            const categoria = document.getElementById('categoria').value;
+            const dataInput = document.getElementById('dataDespesa').value;
+            const valorInput = document.getElementById('valor').value;
+            const valor = parseFloat(valorInput);
+
+            if (!categoria || !dataInput || isNaN(valor) || valor <= 0) return;
+
+            // Gera um ID único usando o tempo atual para poder excluir depois
+            const idUnico = Date.now() + Math.floor(Math.random() * 1000);
+
+            despesas.push({ id: idUnico, categoria: categoria, valor: valor, data: dataInput });
+            localStorage.setItem('despesas', JSON.stringify(despesas));
+
+            document.getElementById('valor').value = '';
+            
+            const mesDaDespesa = dataInput.substring(0, 7); 
+            document.getElementById('mesFiltro').value = mesDaDespesa;
+            
+            atualizarGrafico();
+        }
+
+        // Função para apagar um lançamento específico
+        function apagarLancamento(id) {
+            const confirmacao = confirm("Deseja realmente apagar este lançamento?");
+            if (confirmacao) {
+                despesas = despesas.filter(d => d.id !== id);
+                localStorage.setItem('despesas', JSON.stringify(despesas));
+                atualizarGrafico();
+            }
+        }
+
+        function formatarDataBR(dataISO) {
+            if (!dataISO) return "";
+            const partes = dataISO.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}`; // Retorna DD/MM
+            }
+            return dataISO;
+        }
+
+        function atualizarGrafico() {
+            const mesSelecionado = document.getElementById('mesFiltro').value;
+            
+            const despesasFiltradas = despesas.filter(d => {
+                return d.data && d.data.startsWith(mesSelecionado);
+            });
+
+            // Ordena as despesas por data para mostrar no histórico
+            despesasFiltradas.sort((a, b) => a.data.localeCompare(b.data));
+
+            const totais = {};
+            let totalGeral = 0;
+
+            despesasFiltradas.forEach(d => {
+                if (totais[d.categoria]) {
+                    totais[d.categoria] += d.valor;
+                } else {
+                    totais[d.categoria] = d.valor;
+                }
+            });
+
+            const labels = Object.keys(totais);
+            const dados = Object.values(totais);
+            const divResumo = document.getElementById('resumoValores');
+            const divHistorico = document.getElementById('historicoValores');
+
+            if (grafico) {
+                grafico.destroy();
+            }
+
+            if (labels.length === 0) {
+                divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#666;">Nenhum gasto registrado.</h3></div>';
+                divHistorico.innerHTML = '';
+                return;
+            }
+
+            // Geração da Tabela de Resumo por Categoria
+            let htmlResumo = '<div class="resumo-container"><h3>Resumo por Categoria</h3><ul class="resumo-lista">';
+            for (let cat in totais) {
+                htmlResumo += `<li><span>${cat}</span> <span>R$ ${totais[cat].toFixed(2)}</span></li>`;
+                totalGeral += totais[cat];
+            }
+            htmlResumo += `</ul><div class="total-geral">Total do Mês: R$ ${totalGeral.toFixed(2)}</div></div>`;
+            divResumo.innerHTML = htmlResumo;
+
+            // Geração do Histórico Individual (onde fica a opção de excluir)
+            let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
+            despesasFiltradas.forEach(d => {
+                const dataExibicao = formatarDataBR(d.data);
+                htmlHistorico += `
+                    <li>
+                        <span style="color: #999; font-size: 13px;">${dataExibicao} - ${d.categoria}</span> 
+                        <div class="item-detalhe">
+                            <span>R$ ${d.valor.toFixed(2)}</span>
+                            <button class="btn-excluir-item" onclick="apagarLancamento(${d.id})" title="Apagar este gasto">✕</button>
+                        </div>
+                    </li>`;
+            });
+            htmlHistorico += '</ul></div>';
+            divHistorico.innerHTML = htmlHistorico;
+
+            // Geração do Gráfico
+            const ctx = document.getElementById('graficoGastos').getContext('2d');
+            Chart.defaults.color = '#a0a0a0'; 
+
+            grafico = new Chart(ctx, {
+                type: 'doughnut', 
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dados,
+                        backgroundColor: [
+                            '#6b7a8f', '#a88c7d', '#7d8a7a', '#8a7a85', '#607475', '#7a6a78',
+                            '#857362', '#6a8581', '#7a647d', '#856262', '#5b6375', '#6a7860'
+                        ],
+                        borderColor: '#262626',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '65%', 
+                    plugins: {
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                color: '#a0a0a0',
+                                padding: 20,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed !== null) {
+                                        label += 'R$ ' + context.parsed.toFixed(2);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportarParaTXT() {
+            if (despesas.length === 0) return;
+
+            let texto = "Data,Categoria,Valor\n";
+            const despesasOrdenadas = [...despesas].sort((a, b) => a.data.localeCompare(b.data));
+
+            despesasOrdenadas.forEach(d => {
+                let dataFormatada = d.data;
+                if (d.data) {
+                    const partes = d.data.split('-');
+                    if (partes.length === 3) {
+                        dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+                    }
+                }
+                texto += `${dataFormatada},${d.categoria},${d.valor.toFixed(2)}\n`;
+            });
+
+            const blob = new Blob([texto], { type: 'text/plain' });
+            const link = document.createElement('a');
+            
+            link.href = window.URL.createObjectURL(blob);
+            link.download = 'historico_despesas.txt';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

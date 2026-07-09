@@ -81,17 +81,9 @@
         }
         .btn-export {
             background-color: #455263; 
-            margin-top: 0;
         }
         .btn-export:hover {
             background-color: #384352;
-        }
-        .btn-atualizar {
-            background-color: #2b5c8f; 
-            margin-top: 0;
-        }
-        .btn-atualizar:hover {
-            background-color: #1e456e;
         }
         .btn-danger {
             background-color: #5c3e3e; 
@@ -218,11 +210,7 @@
         </div>
 
         <button id="btnRegistrar" onclick="adicionarDespesa()">Registrar Despesa</button>
-        
-        <div class="flex-group" style="margin-top: 10px;">
-            <button class="btn-atualizar" id="btnAtualizar" onclick="forcarAtualizacao()">🔄 Atualizar</button>
-            <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
-        </div>
+        <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
 
         <hr>
 
@@ -248,13 +236,11 @@
     </div>
 
     <script>
-        const API_URL = "https://sheetdb.io/api/v1/33ekix3tm23xo";
+        const API_URL = "https://sheetdb.io/api/v1/xv2c48l7hux45";
 
         let despesas = [];
         let categorias = [];
         let grafico = null;
-
-        const categoriasPadrao = ['Supermercado', 'Farmácia', 'Contas da Casa', 'Transporte', 'Lazer', 'Outros'];
 
         window.onload = async function() {
             const hoje = new Date();
@@ -281,7 +267,7 @@
                 if (catData.length > 0 && !catData.error) {
                     categorias = catData.map(c => c.nome);
                 } else {
-                    categorias = [...categoriasPadrao];
+                    categorias = []; // Fica vazio e puxa apenas da planilha
                 }
                 renderizarCategorias();
 
@@ -290,14 +276,13 @@
                 const despData = await resDesp.json();
                 
                 if (despData.length > 0 && !despData.error) {
-                    
                     // Remove linhas em branco que o Excel às vezes cria
                     const linhasValidas = despData.filter(d => d.data && d.categoria);
 
                     despesas = linhasValidas.map(d => {
                         // BLINDAGEM 1: Arrumar Data caso o Google tenha formatado como DD/MM/YYYY
                         let dataFormatada = d.data;
-                        if (dataFormatada.includes('/')) {
+                        if (dataFormatada && dataFormatada.includes('/')) {
                             const partes = dataFormatada.split('/');
                             if (partes.length === 3) {
                                 dataFormatada = `${partes[2]}-${partes[1]}-${partes[0]}`;
@@ -330,22 +315,6 @@
                 console.error("Erro no carregamento:", erro);
                 document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8c5353;">Erro ao conectar com a planilha. Verifique a internet.</h3></div>';
             }
-        }
-
-        async function forcarAtualizacao() {
-            const btn = document.getElementById('btnAtualizar');
-            const textoOriginal = btn.innerText;
-            
-            btn.innerText = "Atualizando... ⏳";
-            btn.disabled = true;
-            
-            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Carregando dados da planilha... ⏳</h3></div>';
-            document.getElementById('historicoValores').innerHTML = '';
-            
-            await carregarDados();
-            
-            btn.innerText = textoOriginal;
-            btn.disabled = false;
         }
 
         async function adicionarDespesa() {
@@ -536,4 +505,84 @@
 
             let htmlResumo = '<div class="resumo-container"><h3>Resumo por Categoria</h3><ul class="resumo-lista">';
             for (let cat in totais) {
-                htmlResumo += `<li><span>${cat}</span> <span>R$ ${totais[cat].toFixed(2
+                htmlResumo += `<li><span>${cat}</span> <span>R$ ${totais[cat].toFixed(2)}</span></li>`;
+                totalGeral += totais[cat];
+            }
+            htmlResumo += `</ul><div class="total-geral">Total do Mês: R$ ${totalGeral.toFixed(2)}</div></div>`;
+            divResumo.innerHTML = htmlResumo;
+
+            let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
+            despesasFiltradas.forEach(d => {
+                const dataExibicao = formatarDataBR(d.data);
+                htmlHistorico += `
+                    <li style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="color: #999; font-size: 13px;">📅 ${dataExibicao} • ${d.categoria}</span> 
+                            <button class="btn-excluir-item" onclick="apagarLancamento(${d.id_virtual})" title="Apagar este gasto">✕</button>
+                        </div>
+                        <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
+                            R$ ${d.valor.toFixed(2)}
+                        </div>
+                    </li>`;
+            });
+            htmlHistorico += '</ul></div>';
+            divHistorico.innerHTML = htmlHistorico;
+
+            const ctx = document.getElementById('graficoGastos').getContext('2d');
+            Chart.defaults.color = '#a0a0a0'; 
+
+            grafico = new Chart(ctx, {
+                type: 'doughnut', 
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dados,
+                        backgroundColor: [
+                            '#6b7a8f', '#a88c7d', '#7d8a7a', '#8a7a85', '#607475', '#7a6a78',
+                            '#857362', '#6a8581', '#7a647d', '#856262', '#5b6375', '#6a7860'
+                        ],
+                        borderColor: '#262626',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '65%', 
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#a0a0a0', padding: 20, font: { size: 12 } } },
+                        tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) label += ': '; if (context.parsed !== null) { label += 'R$ ' + context.parsed.toFixed(2); } return label; } } }
+                    }
+                }
+            });
+        }
+
+        function exportarParaTXT() {
+            if (despesas.length === 0) return;
+
+            let texto = "Data,Categoria,Valor\n";
+            const despesasOrdenadas = [...despesas].sort((a, b) => a.data.localeCompare(b.data));
+
+            despesasOrdenadas.forEach(d => {
+                let dataFormatada = d.data;
+                if (d.data) {
+                    const partes = d.data.split('-');
+                    if (partes.length === 3) {
+                        dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+                    }
+                }
+                texto += `${dataFormatada},${d.categoria},${d.valor.toFixed(2)}\n`;
+            });
+
+            const blob = new Blob([texto], { type: 'text/plain' });
+            const link = document.createElement('a');
+            
+            link.href = window.URL.createObjectURL(blob);
+            link.download = 'historico_despesas.txt';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

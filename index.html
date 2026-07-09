@@ -280,7 +280,6 @@
                 
                 if (despData.length > 0 && !despData.error) {
                     despesas = despData.map(d => ({
-                        id: Number(d.id),
                         data: d.data,
                         categoria: d.categoria,
                         valor: parseFloat(d.valor)

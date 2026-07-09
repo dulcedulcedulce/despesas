@@ -265,7 +265,6 @@
             document.getElementById('dataDespesa').value = `${ano}-${mes}-${dia}`;
             document.getElementById('mesFiltro').value = `${ano}-${mes}`;
 
-            // Mostra aviso de carregamento enquanto busca os dados no Google Sheets
             document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Carregando dados da planilha... ⏳</h3></div>';
 
             await carregarDados();
@@ -275,7 +274,7 @@
 
         async function carregarDados() {
             try {
-                // 1. Busca Categorias da aba "Categorias"
+                // 1. Busca Categorias
                 const resCat = await fetch(`${API_URL}?sheet=Categorias`);
                 const catData = await resCat.json();
                 
@@ -286,18 +285,42 @@
                 }
                 renderizarCategorias();
 
-                // 2. Busca Despesas da aba "Despesas"
+                // 2. Busca Despesas
                 const resDesp = await fetch(`${API_URL}?sheet=Despesas`);
                 const despData = await resDesp.json();
                 
                 if (despData.length > 0 && !despData.error) {
-                    // Criamos um ID virtual (apenas local) para que o botão de apagar saiba em qual item clicamos
-                    despesas = despData.map(d => ({
-                        id_virtual: Date.now() + Math.random(), 
-                        data: d.data,
-                        categoria: d.categoria,
-                        valor: parseFloat(d.valor)
-                    }));
+                    
+                    // Remove linhas em branco que o Excel às vezes cria
+                    const linhasValidas = despData.filter(d => d.data && d.categoria);
+
+                    despesas = linhasValidas.map(d => {
+                        // BLINDAGEM 1: Arrumar Data caso o Google tenha formatado como DD/MM/YYYY
+                        let dataFormatada = d.data;
+                        if (dataFormatada.includes('/')) {
+                            const partes = dataFormatada.split('/');
+                            if (partes.length === 3) {
+                                dataFormatada = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                            }
+                        }
+
+                        // BLINDAGEM 2: Arrumar Moeda caso o Google tenha adicionado vírgulas ou R$
+                        let valorNum = String(d.valor || "0");
+                        valorNum = valorNum.replace('R$', '').replace(/\s/g, ''); // Tira espaços e símbolo
+                        if (valorNum.includes(',')) {
+                            // Converte de padrão brasileiro (1.000,50) para padrão javascript (1000.50)
+                            valorNum = valorNum.replace(/\./g, '').replace(',', '.');
+                        }
+
+                        return {
+                            id_virtual: Date.now() + Math.random(), 
+                            data_original: d.data, // Guarda exatamente como veio pra não dar erro no "Deletar"
+                            data: dataFormatada,   // Usa a data corrigida pro filtro do mês funcionar
+                            categoria: d.categoria,
+                            valor_original: d.valor, // Guarda exatamente como veio
+                            valor: parseFloat(valorNum) || 0 // Transforma no valor limpo
+                        };
+                    });
                 } else {
                     despesas = [];
                 }
@@ -338,7 +361,6 @@
             btn.innerText = "Registrando... ⏳";
             btn.disabled = true;
 
-            // Removemos o ID do envio para o banco de dados
             const novaDespesaParaPlanilha = { data: dataInput, categoria: categoria, valor: valor };
 
             try {
@@ -348,8 +370,15 @@
                     body: JSON.stringify({ data: novaDespesaParaPlanilha })
                 });
 
-                // Adiciona na tela com um ID virtual para manipulação
-                despesas.push({ id_virtual: Date.now(), ...novaDespesaParaPlanilha });
+                // Injeta no aplicativo com a mesma blindagem de "dados originais"
+                despesas.push({ 
+                    id_virtual: Date.now(), 
+                    data_original: dataInput,
+                    data: dataInput, 
+                    categoria: categoria, 
+                    valor_original: valor,
+                    valor: valor 
+                });
                 
                 document.getElementById('valor').value = '';
                 document.getElementById('mesFiltro').value = dataInput.substring(0, 7);
@@ -365,23 +394,20 @@
         async function apagarLancamento(idVirtualClicado) {
             if (!confirm("Deseja realmente apagar este lançamento?")) return;
 
-            // Encontra qual despesa corresponde ao clique
             const despesa = despesas.find(d => d.id_virtual === idVirtualClicado);
             if (!despesa) return;
 
             document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Apagando... ⏳</h3></div>';
 
             try {
-                // Como não há mais ID, buscamos na planilha pela combinação exata de data, categoria e valor
-                // O parâmetro limit=1 garante que ele apague apenas uma linha, caso haja gastos iguais
-                const urlDelete = `${API_URL}?sheet=Despesas&data=${despesa.data}&categoria=${encodeURIComponent(despesa.categoria)}&valor=${despesa.valor}&limit=1`;
+                // Ao deletar, passamos a data original e o valor original exatos do Excel para ele achar a linha
+                const urlDelete = `${API_URL}?sheet=Despesas&data=${encodeURIComponent(despesa.data_original)}&categoria=${encodeURIComponent(despesa.categoria)}&valor=${encodeURIComponent(despesa.valor_original)}&limit=1`;
                 
                 await fetch(urlDelete, {
                     method: 'DELETE',
                     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
                 });
                 
-                // Remove visualmente da tela
                 despesas = despesas.filter(d => d.id_virtual !== idVirtualClicado);
                 atualizarGrafico();
             } catch (erro) {
@@ -510,84 +536,4 @@
 
             let htmlResumo = '<div class="resumo-container"><h3>Resumo por Categoria</h3><ul class="resumo-lista">';
             for (let cat in totais) {
-                htmlResumo += `<li><span>${cat}</span> <span>R$ ${totais[cat].toFixed(2)}</span></li>`;
-                totalGeral += totais[cat];
-            }
-            htmlResumo += `</ul><div class="total-geral">Total do Mês: R$ ${totalGeral.toFixed(2)}</div></div>`;
-            divResumo.innerHTML = htmlResumo;
-
-            let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
-            despesasFiltradas.forEach(d => {
-                const dataExibicao = formatarDataBR(d.data);
-                htmlHistorico += `
-                    <li style="flex-direction: column; align-items: flex-start; gap: 5px;">
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span style="color: #999; font-size: 13px;">📅 ${dataExibicao} • ${d.categoria}</span> 
-                            <button class="btn-excluir-item" onclick="apagarLancamento(${d.id_virtual})" title="Apagar este gasto">✕</button>
-                        </div>
-                        <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
-                            R$ ${d.valor.toFixed(2)}
-                        </div>
-                    </li>`;
-            });
-            htmlHistorico += '</ul></div>';
-            divHistorico.innerHTML = htmlHistorico;
-
-            const ctx = document.getElementById('graficoGastos').getContext('2d');
-            Chart.defaults.color = '#a0a0a0'; 
-
-            grafico = new Chart(ctx, {
-                type: 'doughnut', 
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: dados,
-                        backgroundColor: [
-                            '#6b7a8f', '#a88c7d', '#7d8a7a', '#8a7a85', '#607475', '#7a6a78',
-                            '#857362', '#6a8581', '#7a647d', '#856262', '#5b6375', '#6a7860'
-                        ],
-                        borderColor: '#262626',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    cutout: '65%', 
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: '#a0a0a0', padding: 20, font: { size: 12 } } },
-                        tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) label += ': '; if (context.parsed !== null) { label += 'R$ ' + context.parsed.toFixed(2); } return label; } } }
-                    }
-                }
-            });
-        }
-
-        function exportarParaTXT() {
-            if (despesas.length === 0) return;
-
-            let texto = "Data,Categoria,Valor\n";
-            const despesasOrdenadas = [...despesas].sort((a, b) => a.data.localeCompare(b.data));
-
-            despesasOrdenadas.forEach(d => {
-                let dataFormatada = d.data;
-                if (d.data) {
-                    const partes = d.data.split('-');
-                    if (partes.length === 3) {
-                        dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
-                    }
-                }
-                texto += `${dataFormatada},${d.categoria},${d.valor.toFixed(2)}\n`;
-            });
-
-            const blob = new Blob([texto], { type: 'text/plain' });
-            const link = document.createElement('a');
-            
-            link.href = window.URL.createObjectURL(blob);
-            link.download = 'historico_despesas.txt';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
-</body>
-</html>
+                htmlResumo += `<li><span>${cat}</span> <span>R$ ${totais[cat].toFixed(2

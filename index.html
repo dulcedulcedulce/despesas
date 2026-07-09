@@ -81,9 +81,17 @@
         }
         .btn-export {
             background-color: #455263; 
+            margin-top: 0;
         }
         .btn-export:hover {
             background-color: #384352;
+        }
+        .btn-atualizar {
+            background-color: #2b5c8f; 
+            margin-top: 0;
+        }
+        .btn-atualizar:hover {
+            background-color: #1e456e;
         }
         .btn-danger {
             background-color: #5c3e3e; 
@@ -210,7 +218,11 @@
         </div>
 
         <button id="btnRegistrar" onclick="adicionarDespesa()">Registrar Despesa</button>
-        <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
+        
+        <div class="flex-group" style="margin-top: 10px;">
+            <button class="btn-atualizar" id="btnAtualizar" onclick="forcarAtualizacao()">🔄 Atualizar</button>
+            <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
+        </div>
 
         <hr>
 
@@ -242,7 +254,7 @@
         let categorias = [];
         let grafico = null;
 
-        const categoriasPadrao = [];
+        const categoriasPadrao = ['Supermercado', 'Farmácia', 'Contas da Casa', 'Transporte', 'Lazer', 'Outros'];
 
         window.onload = async function() {
             const hoje = new Date();
@@ -279,7 +291,9 @@
                 const despData = await resDesp.json();
                 
                 if (despData.length > 0 && !despData.error) {
+                    // Criamos um ID virtual (apenas local) para que o botão de apagar saiba em qual item clicamos
                     despesas = despData.map(d => ({
+                        id_virtual: Date.now() + Math.random(), 
                         data: d.data,
                         categoria: d.categoria,
                         valor: parseFloat(d.valor)
@@ -291,8 +305,24 @@
                 atualizarGrafico();
             } catch (erro) {
                 console.error("Erro no carregamento:", erro);
-                document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8c5353;">Erro ao conectar com a planilha. Verifique as abas.</h3></div>';
+                document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8c5353;">Erro ao conectar com a planilha. Verifique a internet.</h3></div>';
             }
+        }
+
+        async function forcarAtualizacao() {
+            const btn = document.getElementById('btnAtualizar');
+            const textoOriginal = btn.innerText;
+            
+            btn.innerText = "Atualizando... ⏳";
+            btn.disabled = true;
+            
+            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Carregando dados da planilha... ⏳</h3></div>';
+            document.getElementById('historicoValores').innerHTML = '';
+            
+            await carregarDados();
+            
+            btn.innerText = textoOriginal;
+            btn.disabled = false;
         }
 
         async function adicionarDespesa() {
@@ -308,17 +338,19 @@
             btn.innerText = "Registrando... ⏳";
             btn.disabled = true;
 
-            const idUnico = Date.now();
-            const novaDespesa = { data: dataInput, categoria: categoria, valor: valor };
+            // Removemos o ID do envio para o banco de dados
+            const novaDespesaParaPlanilha = { data: dataInput, categoria: categoria, valor: valor };
 
             try {
                 await fetch(`${API_URL}?sheet=Despesas`, {
                     method: 'POST',
                     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: novaDespesa })
+                    body: JSON.stringify({ data: novaDespesaParaPlanilha })
                 });
 
-                despesas.push(novaDespesa);
+                // Adiciona na tela com um ID virtual para manipulação
+                despesas.push({ id_virtual: Date.now(), ...novaDespesaParaPlanilha });
+                
                 document.getElementById('valor').value = '';
                 document.getElementById('mesFiltro').value = dataInput.substring(0, 7);
                 atualizarGrafico();
@@ -330,18 +362,27 @@
             btn.disabled = false;
         }
 
-        async function apagarLancamento(id) {
+        async function apagarLancamento(idVirtualClicado) {
             if (!confirm("Deseja realmente apagar este lançamento?")) return;
+
+            // Encontra qual despesa corresponde ao clique
+            const despesa = despesas.find(d => d.id_virtual === idVirtualClicado);
+            if (!despesa) return;
 
             document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Apagando... ⏳</h3></div>';
 
             try {
-                await fetch(`${API_URL}/id/${id}?sheet=Despesas`, {
+                // Como não há mais ID, buscamos na planilha pela combinação exata de data, categoria e valor
+                // O parâmetro limit=1 garante que ele apague apenas uma linha, caso haja gastos iguais
+                const urlDelete = `${API_URL}?sheet=Despesas&data=${despesa.data}&categoria=${encodeURIComponent(despesa.categoria)}&valor=${despesa.valor}&limit=1`;
+                
+                await fetch(urlDelete, {
                     method: 'DELETE',
                     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
                 });
                 
-                despesas = despesas.filter(d => d.id !== id);
+                // Remove visualmente da tela
+                despesas = despesas.filter(d => d.id_virtual !== idVirtualClicado);
                 atualizarGrafico();
             } catch (erro) {
                 alert("Erro ao deletar lançamento na planilha.");
@@ -482,7 +523,7 @@
                     <li style="flex-direction: column; align-items: flex-start; gap: 5px;">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
                             <span style="color: #999; font-size: 13px;">📅 ${dataExibicao} • ${d.categoria}</span> 
-                            <button class="btn-excluir-item" onclick="apagarLancamento(${d.id})" title="Apagar este gasto">✕</button>
+                            <button class="btn-excluir-item" onclick="apagarLancamento(${d.id_virtual})" title="Apagar este gasto">✕</button>
                         </div>
                         <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
                             R$ ${d.valor.toFixed(2)}

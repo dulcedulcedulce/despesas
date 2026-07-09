@@ -310,7 +310,7 @@
             btn.disabled = true;
 
             const idUnico = Date.now();
-            const novaDespesa = { id: idUnico, data: dataInput, categoria: categoria, valor: valor };
+            const novaDespesa = { data: dataInput, categoria: categoria, valor: valor };
 
             try {
                 await fetch(`${API_URL}?sheet=Despesas`, {

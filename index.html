@@ -191,7 +191,6 @@
     <div class="container">
         <h2>Controle de Gastos</h2>
 
-        <!-- Lançamento de Despesas (Posicionado no topo para usabilidade) -->
         <div class="form-group">
             <label for="categoria">Categoria:</label>
             <div class="flex-group">
@@ -210,82 +209,208 @@
             <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
         </div>
 
-        <button onclick="adicionarDespesa()">Registrar Despesa</button>
+        <button id="btnRegistrar" onclick="adicionarDespesa()">Registrar Despesa</button>
         <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
 
         <hr>
 
-        <!-- Adicionar Categoria (Posicionado depois para facilitar o fluxo) -->
         <div class="form-group flex-group">
             <input type="text" id="novaCategoria" placeholder="Nova categoria (Ex: Roupas)">
-            <button class="btn-add" onclick="adicionarCategoria()">+ Adicionar Categoria</button>
+            <button class="btn-add" id="btnNovaCat" onclick="adicionarCategoria()">+ Adicionar Categoria</button>
         </div>
 
         <hr>
 
-        <!-- Filtro de Mês e Análise -->
         <div class="filtro-mes-container">
             <label for="mesFiltro" style="color: #829ab0;">Analisar Mês/Ano:</label>
             <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
         </div>
 
-        <!-- Gráfico -->
         <div class="chart-container">
             <canvas id="graficoGastos"></canvas>
         </div>
 
-        <!-- Lista de Totais e Histórico -->
         <div id="resumoValores"></div>
         <div id="historicoValores"></div>
 
     </div>
 
     <script>
-        // ... (o código JavaScript permanece o mesmo da versão anterior)
+        const API_URL = "https://sheetdb.io/api/v1/33ekix3tm23xo";
+
         let despesas = [];
         let categorias = [];
         let grafico = null;
 
         const categoriasPadrao = ['Supermercado', 'Farmácia', 'Contas da Casa', 'Transporte', 'Lazer', 'Outros'];
 
-        window.onload = function() {
+        window.onload = async function() {
             const hoje = new Date();
             const ano = hoje.getFullYear();
             const mes = String(hoje.getMonth() + 1).padStart(2, '0');
             const dia = String(hoje.getDate()).padStart(2, '0');
-            const dataHoje = `${ano}-${mes}-${dia}`;
-            const mesAtual = `${ano}-${mes}`;
+            
+            document.getElementById('dataDespesa').value = `${ano}-${mes}-${dia}`;
+            document.getElementById('mesFiltro').value = `${ano}-${mes}`;
 
-            const despesasSalvas = localStorage.getItem('despesas');
-            if (despesasSalvas) {
-                despesas = JSON.parse(despesasSalvas);
-                let precisaSalvar = false;
-                despesas.forEach(d => {
-                    if (!d.id) {
-                        d.id = Date.now() + Math.floor(Math.random() * 1000);
-                        precisaSalvar = true;
-                    }
-                    if (!d.data) {
-                        d.data = dataHoje;
-                        precisaSalvar = true;
-                    }
-                });
-                if (precisaSalvar) localStorage.setItem('despesas', JSON.stringify(despesas));
-            }
+            // Mostra aviso de carregamento enquanto busca os dados no Google Sheets
+            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Carregando dados da planilha... ⏳</h3></div>';
 
-            const categoriasSalvas = localStorage.getItem('categorias');
-            if (categoriasSalvas) {
-                categorias = JSON.parse(categoriasSalvas);
-            } else {
-                categorias = [...categoriasPadrao];
-            }
-
-            document.getElementById('dataDespesa').value = dataHoje;
-            document.getElementById('mesFiltro').value = mesAtual;
-
-            renderizarCategorias();
-            atualizarGrafico();
+            await carregarDados();
         };
+
+        // --- FUNÇÕES DE COMUNICAÇÃO COM O SHEETDB ---
+
+        async function carregarDados() {
+            try {
+                // 1. Busca Categorias da aba "Categorias"
+                const resCat = await fetch(`${API_URL}?sheet=Categorias`);
+                const catData = await resCat.json();
+                
+                if (catData.length > 0 && !catData.error) {
+                    categorias = catData.map(c => c.nome);
+                } else {
+                    categorias = [...categoriasPadrao];
+                }
+                renderizarCategorias();
+
+                // 2. Busca Despesas da aba "Despesas"
+                const resDesp = await fetch(`${API_URL}?sheet=Despesas`);
+                const despData = await resDesp.json();
+                
+                if (despData.length > 0 && !despData.error) {
+                    despesas = despData.map(d => ({
+                        id: Number(d.id),
+                        data: d.data,
+                        categoria: d.categoria,
+                        valor: parseFloat(d.valor)
+                    }));
+                } else {
+                    despesas = [];
+                }
+                
+                atualizarGrafico();
+            } catch (erro) {
+                console.error("Erro no carregamento:", erro);
+                document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8c5353;">Erro ao conectar com a planilha. Verifique as abas.</h3></div>';
+            }
+        }
+
+        async function adicionarDespesa() {
+            const categoria = document.getElementById('categoria').value;
+            const dataInput = document.getElementById('dataDespesa').value;
+            const valorInput = document.getElementById('valor').value;
+            const valor = parseFloat(valorInput);
+
+            if (!categoria || !dataInput || isNaN(valor) || valor <= 0) return;
+
+            const btn = document.getElementById('btnRegistrar');
+            const textoOriginal = btn.innerText;
+            btn.innerText = "Registrando... ⏳";
+            btn.disabled = true;
+
+            const idUnico = Date.now();
+            const novaDespesa = { id: idUnico, data: dataInput, categoria: categoria, valor: valor };
+
+            try {
+                await fetch(`${API_URL}?sheet=Despesas`, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: novaDespesa })
+                });
+
+                despesas.push(novaDespesa);
+                document.getElementById('valor').value = '';
+                document.getElementById('mesFiltro').value = dataInput.substring(0, 7);
+                atualizarGrafico();
+            } catch (erro) {
+                alert("Erro ao salvar despesa na planilha.");
+            }
+
+            btn.innerText = textoOriginal;
+            btn.disabled = false;
+        }
+
+        async function apagarLancamento(id) {
+            if (!confirm("Deseja realmente apagar este lançamento?")) return;
+
+            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Apagando... ⏳</h3></div>';
+
+            try {
+                await fetch(`${API_URL}/id/${id}?sheet=Despesas`, {
+                    method: 'DELETE',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+                });
+                
+                despesas = despesas.filter(d => d.id !== id);
+                atualizarGrafico();
+            } catch (erro) {
+                alert("Erro ao deletar lançamento na planilha.");
+                atualizarGrafico(); 
+            }
+        }
+
+        async function adicionarCategoria() {
+            const input = document.getElementById('novaCategoria');
+            const novaCat = input.value.trim();
+
+            if (novaCat === '') return;
+            if (categorias.includes(novaCat)) {
+                alert("Esta categoria já existe.");
+                return;
+            }
+
+            const btn = document.getElementById('btnNovaCat');
+            btn.innerText = "Salvando... ⏳";
+            btn.disabled = true;
+
+            try {
+                await fetch(`${API_URL}?sheet=Categorias`, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: { "nome": novaCat } })
+                });
+
+                categorias.push(novaCat);
+                input.value = '';
+                renderizarCategorias();
+                document.getElementById('categoria').value = novaCat;
+            } catch (erro) {
+                alert("Erro ao salvar categoria na planilha.");
+            }
+
+            btn.innerText = "+ Adicionar Categoria";
+            btn.disabled = false;
+        }
+
+        async function removerCategoria() {
+            const select = document.getElementById('categoria');
+            const catParaRemover = select.value;
+
+            if (!catParaRemover) return;
+            if (!confirm(`Deseja remover a categoria "${catParaRemover}" da lista? \n\nO histórico antigo será mantido.`)) return;
+
+            const btn = document.querySelector('.btn-danger');
+            btn.innerText = "⏳";
+            btn.disabled = true;
+
+            try {
+                await fetch(`${API_URL}/nome/${encodeURIComponent(catParaRemover)}?sheet=Categorias`, {
+                    method: 'DELETE',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+                });
+
+                categorias = categorias.filter(c => c !== catParaRemover);
+                renderizarCategorias();
+            } catch (erro) {
+                alert("Erro ao remover categoria da planilha.");
+            }
+
+            btn.innerText = "✕";
+            btn.disabled = false;
+        }
+
+        // --- FUNÇÕES DE RENDERIZAÇÃO DE TELA E GRÁFICO ---
 
         function renderizarCategorias() {
             const select = document.getElementById('categoria');
@@ -297,70 +422,6 @@
                 option.textContent = cat;
                 select.appendChild(option);
             });
-        }
-
-        function adicionarCategoria() {
-            const input = document.getElementById('novaCategoria');
-            const novaCat = input.value.trim();
-
-            if (novaCat === '') return;
-
-            if (categorias.includes(novaCat)) {
-                alert("Esta categoria já existe.");
-                return;
-            }
-
-            categorias.push(novaCat);
-            localStorage.setItem('categorias', JSON.stringify(categorias)); 
-            
-            input.value = ''; 
-            renderizarCategorias(); 
-            document.getElementById('categoria').value = novaCat; 
-        }
-
-        function removerCategoria() {
-            const select = document.getElementById('categoria');
-            const catParaRemover = select.value;
-
-            if (!catParaRemover) return;
-
-            const confirmacao = confirm(`Deseja remover a categoria "${catParaRemover}" da lista? \n\nO histórico de despesas antigas será mantido no gráfico.`);
-            
-            if (confirmacao) {
-                categorias = categorias.filter(c => c !== catParaRemover);
-                localStorage.setItem('categorias', JSON.stringify(categorias)); 
-                renderizarCategorias(); 
-            }
-        }
-
-        function adicionarDespesa() {
-            const categoria = document.getElementById('categoria').value;
-            const dataInput = document.getElementById('dataDespesa').value;
-            const valorInput = document.getElementById('valor').value;
-            const valor = parseFloat(valorInput);
-
-            if (!categoria || !dataInput || isNaN(valor) || valor <= 0) return;
-
-            const idUnico = Date.now() + Math.floor(Math.random() * 1000);
-
-            despesas.push({ id: idUnico, categoria: categoria, valor: valor, data: dataInput });
-            localStorage.setItem('despesas', JSON.stringify(despesas));
-
-            document.getElementById('valor').value = '';
-            
-            const mesDaDespesa = dataInput.substring(0, 7); 
-            document.getElementById('mesFiltro').value = mesDaDespesa;
-            
-            atualizarGrafico();
-        }
-
-        function apagarLancamento(id) {
-            const confirmacao = confirm("Deseja realmente apagar este lançamento?");
-            if (confirmacao) {
-                despesas = despesas.filter(d => d.id !== id);
-                localStorage.setItem('despesas', JSON.stringify(despesas));
-                atualizarGrafico();
-            }
         }
 
         function formatarDataBR(dataISO) {
@@ -402,7 +463,7 @@
             }
 
             if (labels.length === 0) {
-                divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#666;">Nenhum gasto registrado.</h3></div>';
+                divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#666;">Nenhum gasto registrado neste mês.</h3></div>';
                 divHistorico.innerHTML = '';
                 return;
             }

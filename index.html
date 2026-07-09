@@ -267,7 +267,7 @@
                 if (catData.length > 0 && !catData.error) {
                     categorias = catData.map(c => c.nome);
                 } else {
-                    categorias = []; // Fica vazio e puxa apenas da planilha
+                    categorias = []; 
                 }
                 renderizarCategorias();
 
@@ -276,11 +276,10 @@
                 const despData = await resDesp.json();
                 
                 if (despData.length > 0 && !despData.error) {
-                    // Remove linhas em branco que o Excel às vezes cria
                     const linhasValidas = despData.filter(d => d.data && d.categoria);
 
                     despesas = linhasValidas.map(d => {
-                        // BLINDAGEM 1: Arrumar Data caso o Google tenha formatado como DD/MM/YYYY
+                        // Limpa formato do Google Sheets (Data e Valor)
                         let dataFormatada = d.data;
                         if (dataFormatada && dataFormatada.includes('/')) {
                             const partes = dataFormatada.split('/');
@@ -289,21 +288,17 @@
                             }
                         }
 
-                        // BLINDAGEM 2: Arrumar Moeda caso o Google tenha adicionado vírgulas ou R$
                         let valorNum = String(d.valor || "0");
-                        valorNum = valorNum.replace('R$', '').replace(/\s/g, ''); // Tira espaços e símbolo
+                        valorNum = valorNum.replace('R$', '').replace(/\s/g, ''); 
                         if (valorNum.includes(',')) {
-                            // Converte de padrão brasileiro (1.000,50) para padrão javascript (1000.50)
                             valorNum = valorNum.replace(/\./g, '').replace(',', '.');
                         }
 
                         return {
-                            id_virtual: Date.now() + Math.random(), 
-                            data_original: d.data, // Guarda exatamente como veio pra não dar erro no "Deletar"
-                            data: dataFormatada,   // Usa a data corrigida pro filtro do mês funcionar
+                            id: d.id, // Agora ele puxa o ID verdadeiro da planilha
+                            data: dataFormatada,
                             categoria: d.categoria,
-                            valor_original: d.valor, // Guarda exatamente como veio
-                            valor: parseFloat(valorNum) || 0 // Transforma no valor limpo
+                            valor: parseFloat(valorNum) || 0 
                         };
                     });
                 } else {
@@ -330,7 +325,9 @@
             btn.innerText = "Registrando... ⏳";
             btn.disabled = true;
 
-            const novaDespesaParaPlanilha = { data: dataInput, categoria: categoria, valor: valor };
+            // O JAVASCRIPT GERA O ID SOZINHO AQUI:
+            const idGerado = Date.now().toString(); 
+            const novaDespesaParaPlanilha = { id: idGerado, data: dataInput, categoria: categoria, valor: valor };
 
             try {
                 await fetch(`${API_URL}?sheet=Despesas`, {
@@ -339,13 +336,10 @@
                     body: JSON.stringify({ data: novaDespesaParaPlanilha })
                 });
 
-                // Injeta no aplicativo com a mesma blindagem de "dados originais"
                 despesas.push({ 
-                    id_virtual: Date.now(), 
-                    data_original: dataInput,
+                    id: idGerado,
                     data: dataInput, 
                     categoria: categoria, 
-                    valor_original: valor,
                     valor: valor 
                 });
                 
@@ -360,24 +354,30 @@
             btn.disabled = false;
         }
 
-        async function apagarLancamento(idVirtualClicado) {
+        async function apagarLancamento(idClicado) {
             if (!confirm("Deseja realmente apagar este lançamento?")) return;
 
-            const despesa = despesas.find(d => d.id_virtual === idVirtualClicado);
+            // Proteção para itens antigos sem ID
+            if (!idClicado) {
+                alert("Este item é antigo e está sem ID. Por favor, apague-o diretamente no seu Excel.");
+                return;
+            }
+
+            const despesa = despesas.find(d => d.id === idClicado);
             if (!despesa) return;
 
             document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Apagando... ⏳</h3></div>';
 
             try {
-                // Ao deletar, passamos a data original e o valor original exatos do Excel para ele achar a linha
-                const urlDelete = `${API_URL}?sheet=Despesas&data=${encodeURIComponent(despesa.data_original)}&categoria=${encodeURIComponent(despesa.categoria)}&valor=${encodeURIComponent(despesa.valor_original)}&limit=1`;
+                // AGORA O CÓDIGO APAGA CORRETAMENTE DIRECIONANDO O ID PARA O SHEETDB
+                const urlDelete = `${API_URL}/id/${idClicado}?sheet=Despesas`;
                 
                 await fetch(urlDelete, {
                     method: 'DELETE',
                     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
                 });
                 
-                despesas = despesas.filter(d => d.id_virtual !== idVirtualClicado);
+                despesas = despesas.filter(d => d.id !== idClicado);
                 atualizarGrafico();
             } catch (erro) {
                 alert("Erro ao deletar lançamento na planilha.");
@@ -514,11 +514,15 @@
             let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
             despesasFiltradas.forEach(d => {
                 const dataExibicao = formatarDataBR(d.data);
+                
+                // Mapeia o ID clicado (sendo string) para a função
+                const idParaPassar = d.id ? `'${d.id}'` : `null`;
+
                 htmlHistorico += `
                     <li style="flex-direction: column; align-items: flex-start; gap: 5px;">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
                             <span style="color: #999; font-size: 13px;">📅 ${dataExibicao} • ${d.categoria}</span> 
-                            <button class="btn-excluir-item" onclick="apagarLancamento(${d.id_virtual})" title="Apagar este gasto">✕</button>
+                            <button class="btn-excluir-item" onclick="apagarLancamento(${idParaPassar})" title="Apagar este gasto">✕</button>
                         </div>
                         <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
                             R$ ${d.valor.toFixed(2)}

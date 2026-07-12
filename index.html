@@ -28,7 +28,47 @@
             text-align: center;
             color: #eaeaea;
             font-weight: normal;
+            margin-bottom: 20px;
         }
+        
+        /* RESUMO GERAL TOPO COM FILTRO INCLUÍDO */
+        .resumo-topo {
+            background-color: #3b4d42;
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+            border: 1px solid #4a5c50;
+        }
+        .resumo-topo label.titulo {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a8b8ae;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .resumo-topo input[type="month"] {
+            background-color: #2b3b32;
+            border: 1px solid #5c7564;
+            color: #dfdfdf;
+            width: auto;
+            display: inline-block;
+            margin-bottom: 10px;
+            text-align: center;
+            padding: 8px 12px;
+        }
+        .resumo-topo input[type="month"]:focus {
+            border-color: #8da693;
+        }
+        .resumo-topo div.valor {
+            font-size: 28px;
+            font-weight: bold;
+            color: #a3c4a9;
+            margin-top: 5px;
+        }
+
         .form-group {
             margin-bottom: 15px;
         }
@@ -37,13 +77,37 @@
             gap: 10px;
             align-items: center;
         }
+        
+        /* PARCELAMENTO CSS */
+        .parcela-group {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        .chk-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding-bottom: 10px;
+        }
+        .chk-container label {
+            margin: 0;
+            cursor: pointer;
+            color: #dfdfdf;
+        }
+        .chk-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
         label {
             display: block;
             margin-bottom: 5px;
             font-size: 14px;
             color: #aaaaaa;
         }
-        select, input, button {
+        select, input[type="text"], input[type="number"], input[type="date"], input[type="month"], button {
             width: 100%;
             padding: 10px;
             border: 1px solid #3d3d3d;
@@ -67,7 +131,7 @@
             color: #777777;
         }
         
-        /* BOTÕES COM CORES DISCRETAS */
+        /* BOTÕES */
         button {
             background-color: #4a5c50; 
             color: #dfdfdf;
@@ -78,12 +142,6 @@
         }
         button:hover {
             background-color: #3e4d43;
-        }
-        .btn-export {
-            background-color: #455263; 
-        }
-        .btn-export:hover {
-            background-color: #384352;
         }
         .btn-danger {
             background-color: #5c3e3e; 
@@ -97,7 +155,7 @@
         }
         .btn-cancelar {
             background-color: #3d3d3d;
-            display: none; /* Escondido por padrão */
+            display: none; 
         }
         .btn-cancelar:hover {
             background-color: #2b2b2b;
@@ -191,21 +249,18 @@
             border-top: 1px solid #444444;
             padding-top: 12px;
         }
-        
-        /* FILTRO DE MÊS */
-        .filtro-mes-container {
-            background-color: #2e2e2e;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 3px solid #5c7080;
-            margin-bottom: 20px;
-        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h2>Controle de Gastos</h2>
+
+        <div class="resumo-topo">
+            <label for="mesFiltro" class="titulo">Mês de Análise:</label>
+            <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
+            <div class="valor" id="valorTotalTopo">⏳</div>
+        </div>
 
         <div class="form-group">
             <label for="categoria">Categoria:</label>
@@ -216,13 +271,25 @@
         </div>
 
         <div class="form-group">
-            <label for="dataDespesa">Data:</label>
+            <label for="dataDespesa">Data Inicial:</label>
             <input type="date" id="dataDespesa">
         </div>
         
-        <div class="form-group">
-            <label for="valor">Valor (R$):</label>
-            <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
+        <div class="form-group parcela-group">
+            <div style="flex: 2;">
+                <label for="valor">Valor (R$):</label>
+                <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
+            </div>
+            
+            <div class="chk-container">
+                <input type="checkbox" id="chkParcelado" onchange="toggleParcelas()">
+                <label for="chkParcelado">Parcelado</label>
+            </div>
+
+            <div id="divParcelas" style="display: none; flex: 1;">
+                <label for="qtdParcelas">Parcelas:</label>
+                <input type="number" id="qtdParcelas" min="2" step="1" value="2">
+            </div>
         </div>
 
         <div class="form-group">
@@ -234,8 +301,6 @@
             <button id="btnRegistrar" onclick="salvarDespesa()">Registrar Despesa</button>
             <button id="btnCancelarEdicao" class="btn-cancelar" onclick="cancelarEdicao()">Cancelar</button>
         </div>
-        
-        <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
 
         <hr>
 
@@ -245,11 +310,6 @@
         </div>
 
         <hr>
-
-        <div class="filtro-mes-container">
-            <label for="mesFiltro" style="color: #829ab0;">Analisar Mês/Ano:</label>
-            <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
-        </div>
 
         <div class="chart-container">
             <canvas id="graficoGastos"></canvas>
@@ -266,7 +326,7 @@
         let despesas = [];
         let categorias = [];
         let grafico = null;
-        let idEmEdicao = null; // Variável para controlar se estamos editando um item
+        let idEmEdicao = null; 
 
         window.onload = async function() {
             const hoje = new Date();
@@ -282,11 +342,33 @@
             await carregarDados();
         };
 
-        // --- FUNÇÕES DE COMUNICAÇÃO COM O SHEETDB ---
+        function toggleParcelas() {
+            const isChecked = document.getElementById('chkParcelado').checked;
+            document.getElementById('divParcelas').style.display = isChecked ? 'block' : 'none';
+        }
+
+        function adicionarMeses(dataOriginal, meses) {
+            if (meses === 0) return dataOriginal;
+            
+            const [anoStr, mesStr, diaStr] = dataOriginal.split('-');
+            let ano = parseInt(anoStr);
+            let mes = parseInt(mesStr) - 1; 
+            let dia = parseInt(diaStr);
+
+            let data = new Date(ano, mes + meses, 1);
+            let ultimoDiaDoMesDestino = new Date(ano, mes + meses + 1, 0).getDate();
+            let diaAjustado = Math.min(dia, ultimoDiaDoMesDestino);
+            data.setDate(diaAjustado);
+
+            const y = data.getFullYear();
+            const m = String(data.getMonth() + 1).padStart(2, '0');
+            const d = String(data.getDate()).padStart(2, '0');
+            
+            return `${y}-${m}-${d}`;
+        }
 
         async function carregarDados() {
             try {
-                // Busca Categorias
                 const resCat = await fetch(`${API_URL}?sheet=Categorias`);
                 const catData = await resCat.json();
                 
@@ -297,7 +379,6 @@
                 }
                 renderizarCategorias();
 
-                // Busca Despesas
                 const resDesp = await fetch(`${API_URL}?sheet=Despesas`);
                 const despData = await resDesp.json();
                 
@@ -334,6 +415,8 @@
                 atualizarGrafico();
             } catch (erro) {
                 console.error("Erro no carregamento:", erro);
+                document.getElementById('valorTotalTopo').innerText = "Erro";
+                document.getElementById('valorTotalTopo').style.color = "#d6b4b4";
                 document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8c5353;">Erro ao conectar com a planilha. Verifique a internet.</h3></div>';
             }
         }
@@ -357,7 +440,6 @@
 
             try {
                 if (idEmEdicao) {
-                    // MODO DE EDIÇÃO (Atualiza no SheetDB)
                     const dadosAtualizados = { data: dataInput, categoria: categoria, descricao: descricao, valor: valor };
                     
                     await fetch(`${API_URL}/id/${idEmEdicao}?sheet=Despesas`, {
@@ -366,28 +448,57 @@
                         body: JSON.stringify({ data: dadosAtualizados })
                     });
 
-                    // Atualiza no array local
                     const index = despesas.findIndex(d => d.id === idEmEdicao);
                     if (index !== -1) {
                         despesas[index] = { id: idEmEdicao, ...dadosAtualizados };
                     }
                     
-                    cancelarEdicao(); // Limpa a tela e volta ao normal
+                    cancelarEdicao(); 
                 } else {
-                    // MODO DE CRIAÇÃO (Adiciona novo no SheetDB)
-                    const idGerado = Date.now().toString(); 
-                    const novaDespesa = { id: idGerado, data: dataInput, categoria: categoria, descricao: descricao, valor: valor };
+                    const chkParcelado = document.getElementById('chkParcelado').checked;
+                    let qtdParcelas = parseInt(document.getElementById('qtdParcelas').value);
+                    
+                    let novasDespesasParaEnviar = [];
+
+                    if (chkParcelado && qtdParcelas > 1) {
+                        let valorPorParcela = valor / qtdParcelas;
+                        let idBase = Date.now().toString();
+
+                        for (let i = 0; i < qtdParcelas; i++) {
+                            let dataParcela = adicionarMeses(dataInput, i);
+                            let textoParcela = `(Parcela ${i + 1}/${qtdParcelas})`;
+                            let descFormatada = descricao ? `${descricao} ${textoParcela}` : textoParcela;
+
+                            novasDespesasParaEnviar.push({
+                                id: idBase + i, 
+                                data: dataParcela,
+                                categoria: categoria,
+                                descricao: descFormatada,
+                                valor: valorPorParcela
+                            });
+                        }
+                    } else {
+                        novasDespesasParaEnviar.push({
+                            id: Date.now().toString(),
+                            data: dataInput,
+                            categoria: categoria,
+                            descricao: descricao,
+                            valor: valor
+                        });
+                    }
 
                     await fetch(`${API_URL}?sheet=Despesas`, {
                         method: 'POST',
                         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ data: novaDespesa })
+                        body: JSON.stringify({ data: novasDespesasParaEnviar })
                     });
 
-                    despesas.push(novaDespesa);
+                    despesas.push(...novasDespesasParaEnviar);
                     
                     document.getElementById('valor').value = '';
                     document.getElementById('descricao').value = ''; 
+                    document.getElementById('chkParcelado').checked = false;
+                    toggleParcelas();
                 }
 
                 document.getElementById('mesFiltro').value = dataInput.substring(0, 7);
@@ -404,8 +515,6 @@
             }
         }
 
-        // --- FUNÇÕES DE CONTROLE DE EDIÇÃO ---
-
         function carregarEdicao(idClicado) {
             if (!idClicado) {
                 alert("Este item é antigo e está sem ID. Não é possível editar por aqui.");
@@ -415,7 +524,6 @@
             const despesa = despesas.find(d => d.id === idClicado);
             if (!despesa) return;
 
-            // Preenche os campos com os dados do item
             document.getElementById('categoria').value = despesa.categoria;
             document.getElementById('dataDespesa').value = despesa.data;
             document.getElementById('valor').value = despesa.valor;
@@ -423,13 +531,15 @@
 
             idEmEdicao = idClicado;
 
-            // Altera visualmente os botões
             const btnRegistrar = document.getElementById('btnRegistrar');
             btnRegistrar.innerText = "Salvar Alterações";
-            btnRegistrar.style.backgroundColor = "#5c7080"; // Cor de destaque
+            btnRegistrar.style.backgroundColor = "#5c7080"; 
             document.getElementById('btnCancelarEdicao').style.display = "block";
 
-            // Sobe a tela suavemente para focar nos campos
+            document.getElementById('chkParcelado').disabled = true;
+            document.getElementById('chkParcelado').checked = false;
+            toggleParcelas();
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -438,11 +548,11 @@
             document.getElementById('valor').value = '';
             document.getElementById('descricao').value = '';
             
-            // Restaura os botões ao estado original
             const btnRegistrar = document.getElementById('btnRegistrar');
             btnRegistrar.innerText = "Registrar Despesa";
             btnRegistrar.style.backgroundColor = "#4a5c50";
             document.getElementById('btnCancelarEdicao').style.display = "none";
+            document.getElementById('chkParcelado').disabled = false;
         }
 
         async function apagarLancamento(idClicado) {
@@ -468,7 +578,6 @@
                 
                 despesas = despesas.filter(d => d.id !== idClicado);
                 
-                // Se apagar o item que estava editando, cancela a edição
                 if (idEmEdicao === idClicado) cancelarEdicao();
                 
                 atualizarGrafico();
@@ -477,8 +586,6 @@
                 atualizarGrafico(); 
             }
         }
-
-        // --- FUNÇÕES DE CATEGORIAS E TELA ---
 
         async function adicionarCategoria() {
             const input = document.getElementById('novaCategoria');
@@ -568,11 +675,18 @@
                 return d.data && d.data.startsWith(mesSelecionado);
             });
 
-            despesasFiltradas.sort((a, b) => a.data.localeCompare(b.data));
+            // Ordena o histórico por data (DECRESCENTE: mais recente primeiro)
+            despesasFiltradas.sort((a, b) => {
+                let diffDate = b.data.localeCompare(a.data);
+                // Se for o mesmo dia, tenta ordenar pelo ID (que é o timestamp do momento da criação) para mostrar o exato último adicionado no topo
+                if (diffDate === 0 && a.id && b.id) {
+                    return b.id.localeCompare(a.id);
+                }
+                return diffDate;
+            });
 
             const totais = {};
-            let totalGeral = 0;
-
+            
             despesasFiltradas.forEach(d => {
                 if (totais[d.categoria]) {
                     totais[d.categoria] += d.valor;
@@ -581,28 +695,37 @@
                 }
             });
 
-            const labels = Object.keys(totais);
-            const dados = Object.values(totais);
+            let totaisArray = Object.keys(totais).map(cat => {
+                return { categoria: cat, valor: totais[cat] };
+            });
+            totaisArray.sort((a, b) => b.valor - a.valor);
+
             const divResumo = document.getElementById('resumoValores');
             const divHistorico = document.getElementById('historicoValores');
-
+            
             if (grafico) {
                 grafico.destroy();
             }
 
-            if (labels.length === 0) {
+            if (totaisArray.length === 0) {
+                document.getElementById('valorTotalTopo').innerText = "R$ 0.00";
                 divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#666;">Nenhum gasto registrado neste mês.</h3></div>';
                 divHistorico.innerHTML = '';
                 return;
             }
 
+            let totalGeral = 0;
             let htmlResumo = '<div class="resumo-container"><h3>Resumo por Categoria</h3><ul class="resumo-lista">';
-            for (let cat in totais) {
-                htmlResumo += `<li><span>${cat}</span> <span>R$ ${totais[cat].toFixed(2)}</span></li>`;
-                totalGeral += totais[cat];
-            }
-            htmlResumo += `</ul><div class="total-geral">Total do Mês: R$ ${totalGeral.toFixed(2)}</div></div>`;
+            
+            totaisArray.forEach(item => {
+                htmlResumo += `<li><span>${item.categoria}</span> <span>R$ ${item.valor.toFixed(2)}</span></li>`;
+                totalGeral += item.valor;
+            });
+            htmlResumo += `</ul></div>`;
             divResumo.innerHTML = htmlResumo;
+
+            // Atualiza Banner de Resumo do Topo com o novo total
+            document.getElementById('valorTotalTopo').innerText = `R$ ${totalGeral.toFixed(2)}`;
 
             let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
             despesasFiltradas.forEach(d => {
@@ -627,15 +750,18 @@
             htmlHistorico += '</ul></div>';
             divHistorico.innerHTML = htmlHistorico;
 
+            const labelsGrafico = totaisArray.map(item => item.categoria);
+            const dadosGrafico = totaisArray.map(item => item.valor);
+
             const ctx = document.getElementById('graficoGastos').getContext('2d');
             Chart.defaults.color = '#a0a0a0'; 
 
             grafico = new Chart(ctx, {
                 type: 'doughnut', 
                 data: {
-                    labels: labels,
+                    labels: labelsGrafico,
                     datasets: [{
-                        data: dados,
+                        data: dadosGrafico,
                         backgroundColor: [
                             '#6b7a8f', '#a88c7d', '#7d8a7a', '#8a7a85', '#607475', '#7a6a78',
                             '#857362', '#6a8581', '#7a647d', '#856262', '#5b6375', '#6a7860'
@@ -653,35 +779,6 @@
                     }
                 }
             });
-        }
-
-        function exportarParaTXT() {
-            if (despesas.length === 0) return;
-
-            let texto = "Data,Categoria,Descricao,Valor\n";
-            const despesasOrdenadas = [...despesas].sort((a, b) => a.data.localeCompare(b.data));
-
-            despesasOrdenadas.forEach(d => {
-                let dataFormatada = d.data;
-                if (d.data) {
-                    const partes = d.data.split('-');
-                    if (partes.length === 3) {
-                        dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
-                    }
-                }
-                const desc = d.descricao || '';
-                texto += `${dataFormatada},${d.categoria},${desc},${d.valor.toFixed(2)}\n`;
-            });
-
-            const blob = new Blob([texto], { type: 'text/plain' });
-            const link = document.createElement('a');
-            
-            link.href = window.URL.createObjectURL(blob);
-            link.download = 'historico_despesas.txt';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
     </script>
 </body>

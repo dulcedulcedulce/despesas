@@ -42,7 +42,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px; /* Espaço entre o seletor e o valor */
+            gap: 20px; 
         }
         .resumo-topo input[type="month"] {
             background-color: #2b3b32;
@@ -242,7 +242,6 @@
     <div class="container">
         <h2>Controle de Gastos</h2>
 
-        <!-- Resumo Rápido e Seleção de Mês Lado a Lado no Topo -->
         <div class="resumo-topo">
             <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
             <div class="valor" id="valorTotalTopo">⏳</div>
@@ -264,7 +263,7 @@
         <div class="form-group parcela-group">
             <div style="flex: 2;">
                 <label for="valor">Valor (R$):</label>
-                <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
+                <input type="text" id="valor" oninput="mascaraMoeda(this)" placeholder="0,00">
             </div>
             
             <div class="chk-container">
@@ -327,6 +326,19 @@
 
             await carregarDados();
         };
+
+        // Função de Máscara de Moeda (PT-BR)
+        function mascaraMoeda(campo) {
+            let valor = campo.value.replace(/\D/g, "");
+            if (valor === "") {
+                campo.value = "";
+                return;
+            }
+            valor = (parseInt(valor) / 100).toFixed(2);
+            valor = valor.replace(".", ",");
+            valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            campo.value = valor;
+        }
 
         // Função para formatar o valor em formato pt-BR (xx.xxx,xx)
         function formatarMoeda(valor) {
@@ -417,7 +429,9 @@
             const dataInput = document.getElementById('dataDespesa').value;
             const descricao = document.getElementById('descricao').value.trim();
             const valorInput = document.getElementById('valor').value;
-            const valor = parseFloat(valorInput);
+            
+            // Converte o valor formatado (1.000,00) de volta para float (1000.00)
+            const valor = parseFloat(valorInput.replace(/\./g, '').replace(',', '.'));
 
             if (!categoria || !dataInput || isNaN(valor) || valor <= 0) return;
 
@@ -517,7 +531,12 @@
 
             document.getElementById('categoria').value = despesa.categoria;
             document.getElementById('dataDespesa').value = despesa.data;
-            document.getElementById('valor').value = despesa.valor;
+            
+            // Formata o valor antes de colocar no input
+            document.getElementById('valor').value = despesa.valor.toFixed(2).replace('.', ',');
+            // Dispara a máscara visual
+            mascaraMoeda(document.getElementById('valor'));
+
             document.getElementById('descricao').value = despesa.descricao || '';
 
             idEmEdicao = idClicado;

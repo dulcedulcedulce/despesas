@@ -6,234 +6,306 @@
     <title>Controle de Gastos Simples</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* TEMA ESCURO DISCRETO */
+        /* TEMA ESCURO E MODERNO */
+        :root {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-muted: #aaaaaa;
+            --primary-color: #a3c4a9;
+            --primary-btn: #4a5c50;
+            --primary-btn-hover: #5c7564;
+            --danger-color: #d6b4b4;
+            --danger-btn: #5c3e3e;
+            --danger-btn-hover: #7a5252;
+            --input-bg: #2b2b2b;
+            --border-color: #3d3d3d;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-color: #1a1a1a; 
-            color: #dcdcdc; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
         }
+
         .container {
-            background-color: #262626; 
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            background-color: var(--container-bg); 
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
             max-width: 500px;
             width: 100%;
         }
+
         h2 {
             text-align: center;
-            color: #eaeaea;
-            font-weight: normal;
-            margin-bottom: 20px;
+            color: #ffffff;
+            font-weight: 600;
+            margin-bottom: 25px;
+            letter-spacing: 0.5px;
         }
         
-        /* RESUMO GERAL TOPO COM FILTRO INCLUÍDO LADO A LADO */
+        /* RESUMO GERAL TOPO */
         .resumo-topo {
-            background-color: #3b4d42;
-            padding: 15px;
-            border-radius: 8px;
+            background-color: #2c3b31;
+            padding: 15px 20px;
+            border-radius: 10px;
             margin-bottom: 25px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
-            border: 1px solid #4a5c50;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+            border: 1px solid #3d4d42;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            gap: 20px; /* Espaço entre o seletor e o valor */
+            gap: 15px;
         }
-        .resumo-topo input[type="month"] {
-            background-color: #2b3b32;
-            border: 1px solid #5c7564;
-            color: #dfdfdf;
-            width: auto;
-            text-align: center;
-            padding: 8px 12px;
-            font-size: 16px;
+
+        /* CONTAINER CUSTOMIZADO PARA O FILTRO DE MÊS */
+        .mes-filtro-container {
+            background-color: #1f2922;
+            border: 1px solid #4a5c50;
+            color: var(--text-color);
+            padding: 8px 14px;
+            font-size: 15px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-width: 120px;
+            user-select: none;
         }
-        .resumo-topo input[type="month"]:focus {
-            border-color: #8da693;
+
+        .mes-filtro-container:hover {
+            border-color: var(--primary-color);
+            background-color: #253329;
         }
+
         .resumo-topo div.valor {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
-            color: #a3c4a9;
+            color: var(--primary-color);
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
+
         .flex-group {
             display: flex;
             gap: 10px;
             align-items: center;
         }
         
-        /* PARCELAMENTO CSS */
+        /* PARCELAMENTO */
         .parcela-group {
             display: flex;
             gap: 15px;
             align-items: flex-end;
         }
+
         .chk-container {
             display: flex;
             align-items: center;
-            gap: 5px;
-            padding-bottom: 10px;
+            gap: 8px;
+            padding-bottom: 12px;
         }
+
         .chk-container label {
             margin: 0;
             cursor: pointer;
-            color: #dfdfdf;
+            color: var(--text-color);
+            font-size: 14px;
         }
+
         .chk-container input[type="checkbox"] {
             width: 18px;
             height: 18px;
             cursor: pointer;
+            accent-color: var(--primary-color);
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #aaaaaa;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        select, input[type="text"], input[type="number"], input[type="date"], input[type="month"], button {
+
+        select, input[type="text"], input[type="number"], input[type="date"] {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #3d3d3d;
-            border-radius: 5px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             box-sizing: border-box;
             font-size: 15px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
+
         ::-webkit-calendar-picker-indicator {
             filter: invert(0.8);
             cursor: pointer;
         }
-        select, input {
-            background-color: #333333;
-            color: #dfdfdf;
-        }
+
         select:focus, input:focus {
             outline: none;
-            border-color: #5c7080;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(163, 196, 169, 0.2);
         }
+
         input::placeholder {
-            color: #777777;
+            color: #666666;
         }
         
         /* BOTÕES */
         button {
-            background-color: #4a5c50; 
-            color: #dfdfdf;
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
             border: none;
             cursor: pointer;
-            margin-top: 10px;
-            transition: background-color 0.2s;
+            margin-top: 5px;
+            transition: all 0.2s ease-in-out;
+            background-color: var(--primary-btn); 
+            color: #ffffff;
         }
+
         button:hover {
-            background-color: #3e4d43;
+            background-color: var(--primary-btn-hover);
+            transform: translateY(-1px);
         }
+
+        button:active {
+            transform: translateY(0);
+        }
+
         .btn-danger {
-            background-color: #5c3e3e; 
-            color: #d6b4b4;
+            background-color: var(--danger-btn); 
+            color: var(--danger-color);
             width: auto;
             margin-top: 0;
-            padding: 10px 15px;
+            padding: 12px 16px;
         }
+
         .btn-danger:hover {
-            background-color: #4d3333;
+            background-color: var(--danger-btn-hover);
+            color: #ffffff;
         }
+
         .btn-cancelar {
-            background-color: #3d3d3d;
+            background-color: #444;
             display: none; 
         }
+
         .btn-cancelar:hover {
-            background-color: #2b2b2b;
+            background-color: #555;
         }
+
         .btn-add {
-            background-color: #4d4d4d; 
+            background-color: #333333; 
             width: auto;
             margin-top: 0;
             white-space: nowrap;
+            color: #ccc;
         }
+
         .btn-add:hover {
-            background-color: #404040;
+            background-color: #444444;
+            color: #fff;
         }
         
         /* Ícones de ação na lista */
         .acoes-item {
             display: flex;
-            gap: 5px;
+            gap: 8px;
         }
+
         .btn-excluir-item, .btn-editar-item {
             background: none;
             border: none;
-            font-size: 16px;
+            font-size: 18px;
             cursor: pointer;
-            padding: 0 5px;
+            padding: 4px;
             margin-top: 0;
             width: auto;
+            border-radius: 4px;
         }
+
         .btn-excluir-item {
-            color: #8c5353;
+            color: #cf6679;
         }
+
         .btn-excluir-item:hover {
-            color: #d6b4b4;
-            background: none;
+            background-color: rgba(207, 102, 121, 0.1);
         }
+
         .btn-editar-item {
-            color: #5c7080;
+            color: #90caf9;
         }
+
         .btn-editar-item:hover {
-            color: #829ab0;
-            background: none;
+            background-color: rgba(144, 202, 249, 0.1);
         }
         
         .chart-container {
-            margin-top: 30px;
+            margin-top: 35px;
         }
+
         hr {
             border: 0;
             height: 1px;
-            background: #3d3d3d;
-            margin: 20px 0;
+            background: var(--border-color);
+            margin: 25px 0;
         }
         
         /* RESUMO E LISTA DE VALORES */
         .resumo-container {
             margin-top: 25px;
-            padding: 15px;
-            background-color: #2b2b2b;
-            border-radius: 5px;
-            border: 1px solid #3d3d3d;
+            padding: 20px;
+            background-color: var(--input-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
         }
+
         .resumo-container h3 {
             margin-top: 0;
             font-size: 16px;
             color: #cccccc;
             text-align: center;
-            font-weight: normal;
+            font-weight: 600;
+            margin-bottom: 15px;
         }
+
         .resumo-lista {
             list-style-type: none;
             padding: 0;
             margin: 0;
         }
+
         .resumo-lista li {
-            padding: 8px 0;
-            border-bottom: 1px dashed #444444;
+            padding: 12px 0;
+            border-bottom: 1px solid #3a3a3a;
             display: flex;
             justify-content: space-between;
             align-items: center;
             color: #bbbbbb;
             font-size: 15px;
         }
+
         .resumo-lista li:last-child {
             border-bottom: none;
+            padding-bottom: 0;
         }
     </style>
 </head>
@@ -242,9 +314,11 @@
     <div class="container">
         <h2>Controle de Gastos</h2>
 
-        <!-- Resumo Rápido e Seleção de Mês Lado a Lado no Topo -->
         <div class="resumo-topo">
-            <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
+            <div class="mes-filtro-container" onclick="document.getElementById('mesFiltro').showPicker()">
+                <span id="mesFiltroTexto">⏳</span>
+                <input type="month" id="mesFiltro" onchange="atualizarMesTexto(); atualizarGrafico();" style="position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;">
+            </div>
             <div class="valor" id="valorTotalTopo">⏳</div>
         </div>
 
@@ -264,7 +338,7 @@
         <div class="form-group parcela-group">
             <div style="flex: 2;">
                 <label for="valor">Valor (R$):</label>
-                <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
+                <input type="text" id="valor" oninput="mascaraMoeda(this)" placeholder="0,00">
             </div>
             
             <div class="chk-container">
@@ -290,9 +364,14 @@
 
         <hr>
 
-        <div class="form-group flex-group">
-            <input type="text" id="novaCategoria" placeholder="Nova categoria (Ex: Roupas)">
-            <button class="btn-add" id="btnNovaCat" onclick="adicionarCategoria()">+ Adicionar Categoria</button>
+        <div class="form-group">
+            <button class="btn-add" id="btnMostrarCriarCat" onclick="mostrarCampoCategoria()" style="width: 100%;">+ Adicionar Categoria</button>
+            
+            <div id="divNovaCategoria" class="flex-group" style="display: none; margin-top: 5px;">
+                <input type="text" id="novaCategoria" placeholder="Nova categoria (Ex: Roupas)">
+                <button class="btn-add" id="btnNovaCat" onclick="adicionarCategoria()" style="width: auto; margin-top: 0;">Salvar</button>
+                <button class="btn-cancelar" onclick="esconderCampoCategoria()" style="display: block; width: auto; margin-top: 0; background-color: #3d3d3d;">✕</button>
+            </div>
         </div>
 
         <hr>
@@ -322,13 +401,49 @@
             
             document.getElementById('dataDespesa').value = `${ano}-${mes}-${dia}`;
             document.getElementById('mesFiltro').value = `${ano}-${mes}`;
+            
+            atualizarMesTexto();
 
-            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Carregando dados da planilha... ⏳</h3></div>';
+            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#a3c4a9;">Carregando dados da planilha... ⏳</h3></div>';
 
             await carregarDados();
         };
 
-        // Função para formatar o valor em formato pt-BR (xx.xxx,xx)
+        // Função de Diagramação/Máscara de Moeda Dinâmica (R$)
+        function mascaraMoeda(campo) {
+            let valor = campo.value.replace(/\D/g, "");
+            if (valor === "") {
+                campo.value = "";
+                return;
+            }
+            valor = (parseInt(valor) / 100).toFixed(2);
+            valor = valor.replace(".", Nord = ",");
+            valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            campo.value = valor;
+        }
+
+        // Atualiza visualmente o texto do filtro de mês tirando o "de"
+        function atualizarMesTexto() {
+            const val = document.getElementById('mesFiltro').value;
+            if (!val) return;
+            const [ano, mes] = val.split('-');
+            const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            document.getElementById('mesFiltroTexto').innerText = `${meses[parseInt(mes) - 1]} ${ano}`;
+        }
+
+        // Funções de controle do painel de Nova Categoria
+        function mostrarCampoCategoria() {
+            document.getElementById('btnMostrarCriarCat').style.display = 'none';
+            document.getElementById('divNovaCategoria').style.display = 'flex';
+            document.getElementById('novaCategoria').focus();
+        }
+
+        function esconderCampoCategoria() {
+            document.getElementById('btnMostrarCriarCat').style.display = 'block';
+            document.getElementById('divNovaCategoria').style.display = 'none';
+            document.getElementById('novaCategoria').value = '';
+        }
+
         function formatarMoeda(valor) {
             return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
@@ -364,7 +479,7 @@
                 const catData = await resCat.json();
                 
                 if (catData.length > 0 && !catData.error) {
-                    categorias = catData.map(c => c.nome);
+                    categorias = catData.map(c => c.nome).sort((a, b) => a.localeCompare(b));
                 } else {
                     categorias = []; 
                 }
@@ -407,8 +522,8 @@
             } catch (erro) {
                 console.error("Erro no carregamento:", erro);
                 document.getElementById('valorTotalTopo').innerText = "Erro";
-                document.getElementById('valorTotalTopo').style.color = "#d6b4b4";
-                document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8c5353;">Erro ao conectar com a planilha. Verifique a internet.</h3></div>';
+                document.getElementById('valorTotalTopo').style.color = "#cf6679";
+                document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#cf6679;">Erro ao conectar com a planilha. Verifique a internet.</h3></div>';
             }
         }
 
@@ -417,9 +532,14 @@
             const dataInput = document.getElementById('dataDespesa').value;
             const descricao = document.getElementById('descricao').value.trim();
             const valorInput = document.getElementById('valor').value;
-            const valor = parseFloat(valorInput);
+            
+            // Tratamento do valor que vem formatado com máscara de texto
+            const valor = parseFloat(valorInput.replace(/\./g, '').replace(',', '.'));
 
-            if (!categoria || !dataInput || isNaN(valor) || valor <= 0) return;
+            if (!categoria || !dataInput || isNaN(valor) || valor <= 0) {
+                alert("Por favor, preencha todos os campos corretamente.");
+                return;
+            }
 
             const btnRegistrar = document.getElementById('btnRegistrar');
             const btnCancelar = document.getElementById('btnCancelarEdicao');
@@ -493,6 +613,7 @@
                 }
 
                 document.getElementById('mesFiltro').value = dataInput.substring(0, 7);
+                atualizarMesTexto();
                 atualizarGrafico();
             } catch (erro) {
                 alert("Erro ao salvar despesa na planilha.");
@@ -517,7 +638,12 @@
 
             document.getElementById('categoria').value = despesa.categoria;
             document.getElementById('dataDespesa').value = despesa.data;
-            document.getElementById('valor').value = despesa.valor;
+            
+            // Carrega o valor aplicando a máscara automaticamente na tela
+            let valorFormatado = despesa.valor.toFixed(2).replace('.', ',');
+            valorFormatado = valorFormatado.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            document.getElementById('valor').value = valorFormatado;
+            
             document.getElementById('descricao').value = despesa.descricao || '';
 
             idEmEdicao = idClicado;
@@ -541,7 +667,7 @@
             
             const btnRegistrar = document.getElementById('btnRegistrar');
             btnRegistrar.innerText = "Registrar Despesa";
-            btnRegistrar.style.backgroundColor = "#4a5c50";
+            btnRegistrar.style.backgroundColor = "var(--primary-btn)";
             document.getElementById('btnCancelarEdicao').style.display = "none";
             document.getElementById('chkParcelado').disabled = false;
         }
@@ -557,7 +683,7 @@
             const despesa = despesas.find(d => d.id === idClicado);
             if (!despesa) return;
 
-            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#8da693;">Apagando... ⏳</h3></div>';
+            document.getElementById('resumoValores').innerHTML = '<div class="resumo-container"><h3 style="color:#a3c4a9;">Apagando... ⏳</h3></div>';
 
             try {
                 const urlDelete = `${API_URL}/id/${idClicado}?sheet=Despesas`;
@@ -589,7 +715,7 @@
             }
 
             const btn = document.getElementById('btnNovaCat');
-            btn.innerText = "Salvando... ⏳";
+            btn.innerText = "⏳";
             btn.disabled = true;
 
             try {
@@ -600,14 +726,16 @@
                 });
 
                 categorias.push(novaCat);
+                categorias.sort((a, b) => a.localeCompare(b)); 
                 input.value = '';
                 renderizarCategorias();
                 document.getElementById('categoria').value = novaCat;
+                esconderCampoCategoria(); // Esconde o campo após adicionar com sucesso
             } catch (erro) {
                 alert("Erro ao salvar categoria na planilha.");
             }
 
-            btn.innerText = "+ Adicionar Categoria";
+            btn.innerText = "Salvar";
             btn.disabled = false;
         }
 
@@ -666,7 +794,6 @@
                 return d.data && d.data.startsWith(mesSelecionado);
             });
 
-            // Ordena o histórico por data (DECRESCENTE: mais recente primeiro)
             despesasFiltradas.sort((a, b) => {
                 let diffDate = b.data.localeCompare(a.data);
                 if (diffDate === 0 && a.id && b.id) {
@@ -699,7 +826,7 @@
 
             if (totaisArray.length === 0) {
                 document.getElementById('valorTotalTopo').innerText = "R$ 0,00";
-                divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#666;">Nenhum gasto registrado neste mês.</h3></div>';
+                divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#888;">Nenhum gasto registrado neste mês.</h3></div>';
                 divHistorico.innerHTML = '';
                 return;
             }
@@ -708,31 +835,30 @@
             let htmlResumo = '<div class="resumo-container"><h3>Resumo por Categoria</h3><ul class="resumo-lista">';
             
             totaisArray.forEach(item => {
-                htmlResumo += `<li><span>${item.categoria}</span> <span>R$ ${formatarMoeda(item.valor)}</span></li>`;
+                htmlResumo += `<li><span>${item.categoria}</span> <strong>R$ ${formatarMoeda(item.valor)}</strong></li>`;
                 totalGeral += item.valor;
             });
             htmlResumo += `</ul></div>`;
             divResumo.innerHTML = htmlResumo;
 
-            // Atualiza Banner de Resumo do Topo com o novo total e formatação BR
             document.getElementById('valorTotalTopo').innerText = `R$ ${formatarMoeda(totalGeral)}`;
 
             let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
             despesasFiltradas.forEach(d => {
                 const dataExibicao = formatarDataBR(d.data);
                 const idParaPassar = d.id ? `'${d.id}'` : `null`;
-                const textoDescricao = d.descricao ? ` - ${d.descricao}` : '';
+                const textoDescricao = d.descricao ? ` - <span style="color:#888">${d.descricao}</span>` : '';
 
                 htmlHistorico += `
-                    <li style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                    <li style="flex-direction: column; align-items: flex-start; gap: 8px;">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span style="color: #999; font-size: 13px;">📅 ${dataExibicao} • ${d.categoria}${textoDescricao}</span> 
+                            <span style="color: #bbb; font-size: 13px;">📅 ${dataExibicao} &bull; <strong>${d.categoria}</strong>${textoDescricao}</span> 
                             <div class="acoes-item">
                                 <button class="btn-editar-item" onclick="carregarEdicao(${idParaPassar})" title="Editar este gasto">✎</button>
                                 <button class="btn-excluir-item" onclick="apagarLancamento(${idParaPassar})" title="Apagar este gasto">✕</button>
                             </div>
                         </div>
-                        <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
+                        <div style="font-size: 17px; color: #dfdfdf; font-weight: bold;">
                             R$ ${formatarMoeda(d.valor)}
                         </div>
                     </li>`;
@@ -756,16 +882,20 @@
                             '#6b7a8f', '#a88c7d', '#7d8a7a', '#8a7a85', '#607475', '#7a6a78',
                             '#857362', '#6a8581', '#7a647d', '#856262', '#5b6375', '#6a7860'
                         ],
-                        borderColor: '#262626',
-                        borderWidth: 2
+                        borderColor: '#1e1e1e',
+                        borderWidth: 3
                     }]
                 },
                 options: {
                     responsive: true,
                     cutout: '65%', 
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#a0a0a0', padding: 20, font: { size: 12 } } },
+                        legend: { position: 'bottom', labels: { color: '#e0e0e0', padding: 20, font: { size: 13 } } },
                         tooltip: { 
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 14 },
+                            padding: 12,
                             callbacks: { 
                                 label: function(context) { 
                                     let label = context.label || ''; 

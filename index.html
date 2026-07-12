@@ -31,33 +31,28 @@
             margin-bottom: 20px;
         }
         
-        /* RESUMO GERAL TOPO COM FILTRO INCLUÍDO */
+        /* RESUMO GERAL TOPO COM FILTRO INCLUÍDO LADO A LADO */
         .resumo-topo {
             background-color: #3b4d42;
-            text-align: center;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 25px;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
             border: 1px solid #4a5c50;
-        }
-        .resumo-topo label.titulo {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #a8b8ae;
-            display: block;
-            margin-bottom: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px; /* Espaço entre o seletor e o valor */
         }
         .resumo-topo input[type="month"] {
             background-color: #2b3b32;
             border: 1px solid #5c7564;
             color: #dfdfdf;
             width: auto;
-            display: inline-block;
-            margin-bottom: 10px;
             text-align: center;
             padding: 8px 12px;
+            font-size: 16px;
+            cursor: pointer;
         }
         .resumo-topo input[type="month"]:focus {
             border-color: #8da693;
@@ -66,7 +61,6 @@
             font-size: 28px;
             font-weight: bold;
             color: #a3c4a9;
-            margin-top: 5px;
         }
 
         .form-group {
@@ -241,14 +235,6 @@
         .resumo-lista li:last-child {
             border-bottom: none;
         }
-        .total-geral {
-            font-size: 16px;
-            margin-top: 15px;
-            color: #8da693; 
-            text-align: center;
-            border-top: 1px solid #444444;
-            padding-top: 12px;
-        }
     </style>
 </head>
 <body>
@@ -256,8 +242,8 @@
     <div class="container">
         <h2>Controle de Gastos</h2>
 
+        <!-- Resumo Rápido e Seleção de Mês Lado a Lado no Topo -->
         <div class="resumo-topo">
-            <label for="mesFiltro" class="titulo">Mês de Análise:</label>
             <input type="month" id="mesFiltro" onchange="atualizarGrafico()">
             <div class="valor" id="valorTotalTopo">⏳</div>
         </div>
@@ -341,6 +327,11 @@
 
             await carregarDados();
         };
+
+        // Função para formatar o valor em formato pt-BR (xx.xxx,xx)
+        function formatarMoeda(valor) {
+            return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
 
         function toggleParcelas() {
             const isChecked = document.getElementById('chkParcelado').checked;
@@ -678,7 +669,6 @@
             // Ordena o histórico por data (DECRESCENTE: mais recente primeiro)
             despesasFiltradas.sort((a, b) => {
                 let diffDate = b.data.localeCompare(a.data);
-                // Se for o mesmo dia, tenta ordenar pelo ID (que é o timestamp do momento da criação) para mostrar o exato último adicionado no topo
                 if (diffDate === 0 && a.id && b.id) {
                     return b.id.localeCompare(a.id);
                 }
@@ -708,7 +698,7 @@
             }
 
             if (totaisArray.length === 0) {
-                document.getElementById('valorTotalTopo').innerText = "R$ 0.00";
+                document.getElementById('valorTotalTopo').innerText = "R$ 0,00";
                 divResumo.innerHTML = '<div class="resumo-container"><h3 style="color:#666;">Nenhum gasto registrado neste mês.</h3></div>';
                 divHistorico.innerHTML = '';
                 return;
@@ -718,14 +708,14 @@
             let htmlResumo = '<div class="resumo-container"><h3>Resumo por Categoria</h3><ul class="resumo-lista">';
             
             totaisArray.forEach(item => {
-                htmlResumo += `<li><span>${item.categoria}</span> <span>R$ ${item.valor.toFixed(2)}</span></li>`;
+                htmlResumo += `<li><span>${item.categoria}</span> <span>R$ ${formatarMoeda(item.valor)}</span></li>`;
                 totalGeral += item.valor;
             });
             htmlResumo += `</ul></div>`;
             divResumo.innerHTML = htmlResumo;
 
-            // Atualiza Banner de Resumo do Topo com o novo total
-            document.getElementById('valorTotalTopo').innerText = `R$ ${totalGeral.toFixed(2)}`;
+            // Atualiza Banner de Resumo do Topo com o novo total e formatação BR
+            document.getElementById('valorTotalTopo').innerText = `R$ ${formatarMoeda(totalGeral)}`;
 
             let htmlHistorico = '<div class="resumo-container" style="margin-top: 15px;"><h3>Lançamentos do Mês</h3><ul class="resumo-lista">';
             despesasFiltradas.forEach(d => {
@@ -743,7 +733,7 @@
                             </div>
                         </div>
                         <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
-                            R$ ${d.valor.toFixed(2)}
+                            R$ ${formatarMoeda(d.valor)}
                         </div>
                     </li>`;
             });
@@ -775,7 +765,18 @@
                     cutout: '65%', 
                     plugins: {
                         legend: { position: 'bottom', labels: { color: '#a0a0a0', padding: 20, font: { size: 12 } } },
-                        tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) label += ': '; if (context.parsed !== null) { label += 'R$ ' + context.parsed.toFixed(2); } return label; } } }
+                        tooltip: { 
+                            callbacks: { 
+                                label: function(context) { 
+                                    let label = context.label || ''; 
+                                    if (label) label += ': '; 
+                                    if (context.parsed !== null) { 
+                                        label += 'R$ ' + formatarMoeda(context.parsed); 
+                                    } 
+                                    return label; 
+                                } 
+                            } 
+                        }
                     }
                 }
             });

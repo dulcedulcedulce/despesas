@@ -95,6 +95,13 @@
         .btn-danger:hover {
             background-color: #4d3333;
         }
+        .btn-cancelar {
+            background-color: #3d3d3d;
+            display: none; /* Escondido por padrão */
+        }
+        .btn-cancelar:hover {
+            background-color: #2b2b2b;
+        }
         .btn-add {
             background-color: #4d4d4d; 
             width: auto;
@@ -104,21 +111,34 @@
         .btn-add:hover {
             background-color: #404040;
         }
-        .btn-excluir-item {
+        
+        /* Ícones de ação na lista */
+        .acoes-item {
+            display: flex;
+            gap: 5px;
+        }
+        .btn-excluir-item, .btn-editar-item {
             background: none;
             border: none;
-            color: #8c5353;
-            font-size: 14px;
-            font-weight: bold;
+            font-size: 16px;
             cursor: pointer;
             padding: 0 5px;
-            margin-left: 10px;
             margin-top: 0;
             width: auto;
         }
+        .btn-excluir-item {
+            color: #8c5353;
+        }
         .btn-excluir-item:hover {
-            background: none;
             color: #d6b4b4;
+            background: none;
+        }
+        .btn-editar-item {
+            color: #5c7080;
+        }
+        .btn-editar-item:hover {
+            color: #829ab0;
+            background: none;
         }
         
         .chart-container {
@@ -163,10 +183,6 @@
         .resumo-lista li:last-child {
             border-bottom: none;
         }
-        .item-detalhe {
-            display: flex;
-            align-items: center;
-        }
         .total-geral {
             font-size: 16px;
             margin-top: 15px;
@@ -203,18 +219,22 @@
             <label for="dataDespesa">Data:</label>
             <input type="date" id="dataDespesa">
         </div>
-
-        <div class="form-group">
-            <label for="descricao">Descrição (Opcional):</label>
-            <input type="text" id="descricao" placeholder="Ex: Mercado semanal, Uber...">
-        </div>
         
         <div class="form-group">
             <label for="valor">Valor (R$):</label>
             <input type="number" id="valor" step="0.01" min="0" placeholder="Ex: 50.50">
         </div>
 
-        <button id="btnRegistrar" onclick="adicionarDespesa()">Registrar Despesa</button>
+        <div class="form-group">
+            <label for="descricao">Descrição (Opcional):</label>
+            <input type="text" id="descricao" placeholder="Ex: Mercado semanal, Uber...">
+        </div>
+
+        <div class="flex-group">
+            <button id="btnRegistrar" onclick="salvarDespesa()">Registrar Despesa</button>
+            <button id="btnCancelarEdicao" class="btn-cancelar" onclick="cancelarEdicao()">Cancelar</button>
+        </div>
+        
         <button class="btn-export" onclick="exportarParaTXT()">Baixar backup (.txt)</button>
 
         <hr>
@@ -246,6 +266,7 @@
         let despesas = [];
         let categorias = [];
         let grafico = null;
+        let idEmEdicao = null; // Variável para controlar se estamos editando um item
 
         window.onload = async function() {
             const hoje = new Date();
@@ -265,7 +286,7 @@
 
         async function carregarDados() {
             try {
-                // 1. Busca Categorias
+                // Busca Categorias
                 const resCat = await fetch(`${API_URL}?sheet=Categorias`);
                 const catData = await resCat.json();
                 
@@ -276,7 +297,7 @@
                 }
                 renderizarCategorias();
 
-                // 2. Busca Despesas
+                // Busca Despesas
                 const resDesp = await fetch(`${API_URL}?sheet=Despesas`);
                 const despData = await resDesp.json();
                 
@@ -284,7 +305,6 @@
                     const linhasValidas = despData.filter(d => d.data && d.categoria);
 
                     despesas = linhasValidas.map(d => {
-                        // Limpa formato do Google Sheets (Data e Valor)
                         let dataFormatada = d.data;
                         if (dataFormatada && dataFormatada.includes('/')) {
                             const partes = dataFormatada.split('/');
@@ -303,7 +323,7 @@
                             id: d.id, 
                             data: dataFormatada,
                             categoria: d.categoria,
-                            descricao: d.descricao || "", // Puxa a descrição (se existir)
+                            descricao: d.descricao || "", 
                             valor: parseFloat(valorNum) || 0 
                         };
                     });
@@ -318,49 +338,111 @@
             }
         }
 
-        async function adicionarDespesa() {
+        async function salvarDespesa() {
             const categoria = document.getElementById('categoria').value;
             const dataInput = document.getElementById('dataDespesa').value;
-            const descricao = document.getElementById('descricao').value.trim(); // Pega a descrição
+            const descricao = document.getElementById('descricao').value.trim();
             const valorInput = document.getElementById('valor').value;
             const valor = parseFloat(valorInput);
 
             if (!categoria || !dataInput || isNaN(valor) || valor <= 0) return;
 
-            const btn = document.getElementById('btnRegistrar');
-            const textoOriginal = btn.innerText;
-            btn.innerText = "Registrando... ⏳";
-            btn.disabled = true;
-
-            const idGerado = Date.now().toString(); 
-            // Adiciona a descrição no objeto enviado para o SheetDB
-            const novaDespesaParaPlanilha = { id: idGerado, data: dataInput, categoria: categoria, descricao: descricao, valor: valor };
+            const btnRegistrar = document.getElementById('btnRegistrar');
+            const btnCancelar = document.getElementById('btnCancelarEdicao');
+            const textoOriginal = btnRegistrar.innerText;
+            
+            btnRegistrar.innerText = "Salvando... ⏳";
+            btnRegistrar.disabled = true;
+            btnCancelar.disabled = true;
 
             try {
-                await fetch(`${API_URL}?sheet=Despesas`, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: novaDespesaParaPlanilha })
-                });
+                if (idEmEdicao) {
+                    // MODO DE EDIÇÃO (Atualiza no SheetDB)
+                    const dadosAtualizados = { data: dataInput, categoria: categoria, descricao: descricao, valor: valor };
+                    
+                    await fetch(`${API_URL}/id/${idEmEdicao}?sheet=Despesas`, {
+                        method: 'PUT',
+                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: dadosAtualizados })
+                    });
 
-                despesas.push({ 
-                    id: idGerado,
-                    data: dataInput, 
-                    categoria: categoria, 
-                    descricao: descricao, // Adiciona localmente
-                    valor: valor 
-                });
-                
-                document.getElementById('valor').value = '';
-                document.getElementById('descricao').value = ''; // Limpa o campo de descrição
+                    // Atualiza no array local
+                    const index = despesas.findIndex(d => d.id === idEmEdicao);
+                    if (index !== -1) {
+                        despesas[index] = { id: idEmEdicao, ...dadosAtualizados };
+                    }
+                    
+                    cancelarEdicao(); // Limpa a tela e volta ao normal
+                } else {
+                    // MODO DE CRIAÇÃO (Adiciona novo no SheetDB)
+                    const idGerado = Date.now().toString(); 
+                    const novaDespesa = { id: idGerado, data: dataInput, categoria: categoria, descricao: descricao, valor: valor };
+
+                    await fetch(`${API_URL}?sheet=Despesas`, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: novaDespesa })
+                    });
+
+                    despesas.push(novaDespesa);
+                    
+                    document.getElementById('valor').value = '';
+                    document.getElementById('descricao').value = ''; 
+                }
+
                 document.getElementById('mesFiltro').value = dataInput.substring(0, 7);
                 atualizarGrafico();
             } catch (erro) {
                 alert("Erro ao salvar despesa na planilha.");
+                btnRegistrar.innerText = textoOriginal;
             }
 
-            btn.innerText = textoOriginal;
-            btn.disabled = false;
+            btnRegistrar.disabled = false;
+            btnCancelar.disabled = false;
+            if (!idEmEdicao) {
+                btnRegistrar.innerText = "Registrar Despesa";
+            }
+        }
+
+        // --- FUNÇÕES DE CONTROLE DE EDIÇÃO ---
+
+        function carregarEdicao(idClicado) {
+            if (!idClicado) {
+                alert("Este item é antigo e está sem ID. Não é possível editar por aqui.");
+                return;
+            }
+
+            const despesa = despesas.find(d => d.id === idClicado);
+            if (!despesa) return;
+
+            // Preenche os campos com os dados do item
+            document.getElementById('categoria').value = despesa.categoria;
+            document.getElementById('dataDespesa').value = despesa.data;
+            document.getElementById('valor').value = despesa.valor;
+            document.getElementById('descricao').value = despesa.descricao || '';
+
+            idEmEdicao = idClicado;
+
+            // Altera visualmente os botões
+            const btnRegistrar = document.getElementById('btnRegistrar');
+            btnRegistrar.innerText = "Salvar Alterações";
+            btnRegistrar.style.backgroundColor = "#5c7080"; // Cor de destaque
+            document.getElementById('btnCancelarEdicao').style.display = "block";
+
+            // Sobe a tela suavemente para focar nos campos
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelarEdicao() {
+            idEmEdicao = null;
+            document.getElementById('valor').value = '';
+            document.getElementById('descricao').value = '';
+            
+            // Restaura os botões ao estado original
+            const btnRegistrar = document.getElementById('btnRegistrar');
+            btnRegistrar.innerText = "Registrar Despesa";
+            btnRegistrar.style.backgroundColor = "#4a5c50";
+            document.getElementById('btnCancelarEdicao').style.display = "none";
         }
 
         async function apagarLancamento(idClicado) {
@@ -385,12 +467,18 @@
                 });
                 
                 despesas = despesas.filter(d => d.id !== idClicado);
+                
+                // Se apagar o item que estava editando, cancela a edição
+                if (idEmEdicao === idClicado) cancelarEdicao();
+                
                 atualizarGrafico();
             } catch (erro) {
                 alert("Erro ao deletar lançamento na planilha.");
                 atualizarGrafico(); 
             }
         }
+
+        // --- FUNÇÕES DE CATEGORIAS E TELA ---
 
         async function adicionarCategoria() {
             const input = document.getElementById('novaCategoria');
@@ -451,8 +539,6 @@
             btn.innerText = "✕";
             btn.disabled = false;
         }
-
-        // --- FUNÇÕES DE RENDERIZAÇÃO DE TELA E GRÁFICO ---
 
         function renderizarCategorias() {
             const select = document.getElementById('categoria');
@@ -522,15 +608,16 @@
             despesasFiltradas.forEach(d => {
                 const dataExibicao = formatarDataBR(d.data);
                 const idParaPassar = d.id ? `'${d.id}'` : `null`;
-                
-                // Monta o texto de descrição se ele existir
                 const textoDescricao = d.descricao ? ` - ${d.descricao}` : '';
 
                 htmlHistorico += `
                     <li style="flex-direction: column; align-items: flex-start; gap: 5px;">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
                             <span style="color: #999; font-size: 13px;">📅 ${dataExibicao} • ${d.categoria}${textoDescricao}</span> 
-                            <button class="btn-excluir-item" onclick="apagarLancamento(${idParaPassar})" title="Apagar este gasto">✕</button>
+                            <div class="acoes-item">
+                                <button class="btn-editar-item" onclick="carregarEdicao(${idParaPassar})" title="Editar este gasto">✎</button>
+                                <button class="btn-excluir-item" onclick="apagarLancamento(${idParaPassar})" title="Apagar este gasto">✕</button>
+                            </div>
                         </div>
                         <div style="font-size: 16px; color: #dfdfdf; font-weight: bold;">
                             R$ ${d.valor.toFixed(2)}
@@ -571,7 +658,6 @@
         function exportarParaTXT() {
             if (despesas.length === 0) return;
 
-            // Inclui a descrição no cabeçalho
             let texto = "Data,Categoria,Descricao,Valor\n";
             const despesasOrdenadas = [...despesas].sort((a, b) => a.data.localeCompare(b.data));
 
@@ -583,7 +669,6 @@
                         dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
                     }
                 }
-                // Adiciona a descrição na linha (ou deixa vazio se não houver)
                 const desc = d.descricao || '';
                 texto += `${dataFormatada},${d.categoria},${desc},${d.valor.toFixed(2)}\n`;
             });
